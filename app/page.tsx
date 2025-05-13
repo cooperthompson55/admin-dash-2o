@@ -8,6 +8,7 @@ import { Loader2, RefreshCw, Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
+import { DaySchedule } from "@/components/day-schedule"
 
 // Define the Booking type
 type Booking = {
@@ -211,9 +212,13 @@ export default function AdminDashboard() {
             <span className="ml-2 text-gray-500">Loading bookings...</span>
           </div>
         ) : (
-          <Suspense fallback={<div>Loading...</div>}>
-            <BookingsTable bookings={bookings} onRefresh={handleManualRefresh} />
-          </Suspense>
+          <div className="grid grid-cols-1 md:grid-cols-1 md:grid-cols-[minmax(0,350px)_1fr] gap-8 mt-12 items-start">
+            <DaySchedule bookings={bookings} />
+            <div className="h-full flex flex-col w-full">
+              <h2 className="text-2xl font-semibold mb-4">All Bookings</h2>
+              <BookingsTable bookings={bookings} onRefresh={handleManualRefresh} />
+            </div>
+          </div>
         )}
 
         {/* Debug info - remove in production */}

@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import Link from "next/link"
 
 // Define types based on the provided schema
 type Address = {
@@ -205,12 +206,11 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
     }
   }
 
-  // Format address for display
+  // Format address for display (now only main address and city)
   const formatAddress = (addressData: string | Address | null | undefined): string => {
     const address = parseAddress(addressData)
-    return `${address.street || ""}${address.street2 ? `, ${address.street2}` : ""}${
-      address.street ? ", " : ""
-    }${address.city || ""}${address.city ? ", " : ""}${address.province || ""} ${address.zipCode || ""}`
+    // Only show street and city
+    return `${address.street || ""}${address.city ? ", " + address.city : ""}`
   }
 
   // If not mounted yet, return a loading state
@@ -405,9 +405,6 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                     </TableCell>
                     <TableCell>
                       <div>{formatAddress(booking.address)}</div>
-                      <div className="text-xs text-gray-500">
-                        Size: {booking.property_size} | Status: {booking.property_status}
-                      </div>
                     </TableCell>
                     <TableCell>{formatDate(booking.preferred_date)}</TableCell>
                     <TableCell>
@@ -710,6 +707,13 @@ function ExpandedBookingDetails({
             </div>
           </div>
         </div>
+      </div>
+      <div className="flex justify-end mt-4">
+        <Link href={`/bookings/${booking.id}`} passHref legacyBehavior>
+          <Button as="a" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50">
+            View Details
+          </Button>
+        </Link>
       </div>
     </div>
   )
