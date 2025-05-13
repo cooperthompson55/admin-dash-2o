@@ -66,6 +66,23 @@ export default function BookingDetailsPage() {
       console.log('Formatted time for Supabase:', updatedForm.time)
     }
 
+    // Format preferred_date properly for Supabase date column
+    if (updatedForm.preferred_date) {
+      console.log('Original date value:', updatedForm.preferred_date)
+      
+      // Ensure the date is in ISO format (YYYY-MM-DD)
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+      if (!dateRegex.test(updatedForm.preferred_date)) {
+        setError("Invalid date format. Please use YYYY-MM-DD format.")
+        setSaving(false)
+        return
+      }
+      
+      // Add time component to make it a full ISO datetime
+      updatedForm.preferred_date = `${updatedForm.preferred_date}T00:00:00`
+      console.log('Formatted date for Supabase:', updatedForm.preferred_date)
+    }
+
     try {
       // Use the same update endpoint as the main dashboard
       const response = await fetch('/api/bookings/update', {
@@ -139,7 +156,22 @@ export default function BookingDetailsPage() {
         {/* Booking Metadata */}
         <div className="bg-white rounded-lg p-6 border">
           <h2 className="text-lg font-semibold mb-4">Booking Metadata</h2>
-          <div className="mb-2"><span className="text-xs text-gray-500 block">Preferred Date</span>{booking.preferred_date}</div>
+          <div className="mb-2">
+            <span className="text-xs text-gray-500 block">Preferred Date</span>
+            {editing ? (
+              <input
+                type="date"
+                className="border rounded px-2 py-1 text-sm"
+                value={form.preferred_date ? form.preferred_date.split('T')[0] : ""}
+                onChange={e => {
+                  console.log('Date input changed:', e.target.value)
+                  handleChange("preferred_date", e.target.value)
+                }}
+              />
+            ) : (
+              format(new Date(booking.preferred_date + 'T12:00:00'), "MMMM d, yyyy")
+            )}
+          </div>
           <div className="mb-2">
             <span className="text-xs text-gray-500 block">Time</span>
             {editing ? (

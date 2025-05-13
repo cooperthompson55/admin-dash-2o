@@ -9,7 +9,9 @@ export function formatDate(dateInput: string | Date): string {
   if (!dateInput) return "N/A"
 
   try {
-    const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput
+    const date = typeof dateInput === "string" 
+      ? new Date(dateInput + (dateInput.includes('T') ? '' : 'T12:00:00'))
+      : dateInput
     return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "short",
