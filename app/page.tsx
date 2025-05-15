@@ -23,6 +23,7 @@ type Booking = {
   property_status: string
   status: string
   payment_status: string
+  editing_status: string
   user_id: string | null
   agent_name: string
   agent_email: string
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
   const previousBookingCount = useRef(0)
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // Function to fetch all bookings
   const fetchBookings = useCallback(
@@ -171,62 +173,60 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <TopNavigation />
-      <main className="flex-1 container mx-auto px-4 py-6 md:py-8">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <h1 className="text-xl md:text-2xl font-bold">Bookings Overview</h1>
-          <div className="flex items-center space-x-3 mt-2 md:mt-0">
-            <div className="flex items-center text-sm text-gray-500">
-              {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              <span>{bookings.length} bookings</span>
-              {lastUpdated && (
-                <span className="ml-2 text-gray-400">· Updated {formatRelativeTime(lastUpdated.toISOString())}</span>
-              )}
-            </div>
-
-            {newBookingsCount > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleManualRefresh}
-                className="text-xs h-8 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-800"
-              >
-                <Bell className="h-3 w-3 mr-1" />
-                {newBookingsCount} new booking{newBookingsCount > 1 ? "s" : ""}
-              </Button>
-            )}
-          </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar for desktop, overlay for mobile/narrow desktop */}
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-56 bg-white text-gray-900 flex-col py-8 px-4 min-h-screen shadow-lg border-r border-gray-200 rounded-r-3xl z-20 transition-all duration-300">
+        <div className="flex flex-col items-center mb-8">
+          <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
         </div>
-
-        {error ? (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-            {error}
-            <Button variant="link" size="sm" onClick={handleManualRefresh} className="text-red-700 underline ml-2">
-              Try again
-            </Button>
-          </div>
-        ) : loading && !lastUpdated ? (
-          <div className="flex justify-center items-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-            <span className="ml-2 text-gray-500">Loading bookings...</span>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-1 md:grid-cols-[minmax(0,350px)_1fr] gap-8 mt-12 items-start">
-            <DaySchedule bookings={bookings} />
-            <div className="h-full flex flex-col w-full">
+        <nav className="flex flex-col gap-2">
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Dashboard</div>
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Calendar</div>
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Bookings</div>
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Clients</div>
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Reports</div>
+          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Settings</div>
+        </nav>
+      </aside>
+      {/* Overlay sidebar for mobile and narrow desktop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-30" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-64 bg-white text-gray-900 flex flex-col py-8 px-4 shadow-lg border-r border-gray-200 rounded-r-3xl z-50 animate-slide-in">
+            <div className="flex flex-col items-center mb-8">
+              <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
+            </div>
+            <nav className="flex flex-col gap-2">
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Dashboard</div>
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Calendar</div>
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Bookings</div>
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Clients</div>
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Reports</div>
+              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Settings</div>
+            </nav>
+          </aside>
+        </div>
+      )}
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        <TopNavigation onBurgerClick={() => setSidebarOpen((v) => !v)} />
+        <main className="flex-1 w-full px-4 py-6 md:py-8">
+          <div className="flex flex-col lg:flex-row items-start w-full h-full">
+            <div className="w-full lg:w-[340px] lg:min-w-[300px] lg:max-w-[380px] lg:mr-4 mb-4 lg:mb-0">
+              <DaySchedule bookings={bookings} />
+            </div>
+            <div className="flex-1 w-full">
               <h2 className="text-2xl font-semibold mb-4">All Bookings</h2>
               <BookingsTable bookings={bookings} onRefresh={handleManualRefresh} />
             </div>
           </div>
-        )}
-
+        </main>
         {/* Debug info - remove in production */}
         <div className="mt-8 text-xs text-gray-400 border-t pt-4">
-          {/* <p>Debug: Last poll attempt: {new Date().toLocaleTimeString()}</p> */}
           <p>Polling interval: {POLLING_INTERVAL / 1000} seconds</p>
         </div>
-      </main>
+      </div>
     </div>
   )
 }

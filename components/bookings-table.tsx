@@ -8,7 +8,7 @@ import { ChevronUp, ChevronDown, Phone, Mail, MapPin, Clock, Save } from "lucide
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { RelativeTime } from "@/components/relative-time"
 import React from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@supabase/supabase-js"
 import {
   Select,
   SelectContent,
@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import Link from "next/link"
+import { useToast } from "@/components/ui/use-toast"
 
 // Define types based on the provided schema
 type Address = {
@@ -46,6 +47,7 @@ type Booking = {
   property_status: string
   status: string
   payment_status: string
+  editing_status: string
   user_id: string | null
   agent_name: string
   agent_email: string
@@ -75,16 +77,40 @@ const PAYMENT_STATUS_OPTIONS = [
   { value: "refunded", label: "Refunded", color: "bg-gray-100 text-gray-800", hoverColor: "hover:bg-gray-200" },
 ]
 
+const EDITING_STATUS_OPTIONS = [
+  { value: "unassigned", label: "Unassigned", color: "bg-gray-100 text-gray-800", hoverColor: "hover:bg-gray-200" },
+  { value: "in_editing", label: "In Editing", color: "bg-blue-100 text-blue-800", hoverColor: "hover:bg-blue-200" },
+  { value: "with_editor", label: "With Editor", color: "bg-purple-100 text-purple-800", hoverColor: "hover:bg-purple-200" },
+  { value: "done_editing", label: "Done Editing", color: "bg-green-100 text-green-800", hoverColor: "hover:bg-green-200" },
+]
+
+// Create Supabase client with explicit configuration
+const supabaseUrl = "https://jshnsfvvsmjlxlbdpehf.supabase.co"
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+})
+
 export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
   const [sortField, setSortField] = useState<SortField>("created_at")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
-  const [modifiedBookings, setModifiedBookings] = useState<Record<string, { status: string; payment_status: string }>>({})
+  const [modifiedBookings, setModifiedBookings] = useState<Record<string, { 
+    status: string; 
+    payment_status: string;
+    editing_status: string;
+  }>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const isMobile = useMediaQuery("(max-width: 768px)")
-  const supabase = createClientComponentClient()
+  const { toast } = useToast()
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
+  const [editingStatusFilter, setEditingStatusFilter] = useState<string>("all")
 
   useEffect(() => {
     setIsMounted(true)
@@ -119,6 +145,16 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
       [bookingId]: {
         ...prev[bookingId],
         payment_status: newStatus
+      }
+    }))
+  }
+
+  const handleEditingStatusChange = (bookingId: string, newStatus: string) => {
+    setModifiedBookings(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...prev[bookingId],
+        editing_status: newStatus
       }
     }))
   }
@@ -172,6 +208,15 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
     return sortDirection === "asc" ? dateA - dateB : dateB - dateA
   })
 
+  // Filtering logic
+  const filteredBookings = bookings.filter((booking) => {
+    return (
+      (statusFilter === "all" || booking.status === statusFilter) &&
+      (paymentStatusFilter === "all" || booking.payment_status === paymentStatusFilter) &&
+      (editingStatusFilter === "all" || booking.editing_status === editingStatusFilter)
+    )
+  })
+
   // Parse address - handles both string and object
   const parseAddress = (addressData: string | Address | null | undefined): Address => {
     if (!addressData) {
@@ -213,6 +258,41 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
     return `${address.street || ""}${address.city ? ", " + address.city : ""}`
   }
 
+  // Add delete booking function
+  const handleDeleteBooking = async (bookingId: string) => {
+    try {
+      console.log('Attempting to delete booking:', bookingId)
+      console.log('Using Supabase URL:', supabaseUrl)
+      
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId)
+
+      if (error) {
+        console.error('Supabase delete error:', error)
+        throw error
+      }
+
+      console.log('Delete operation completed successfully')
+      
+      toast({
+        title: "Success",
+        description: "Booking deleted successfully",
+      })
+      
+      // Refresh the bookings list
+      onRefresh()
+    } catch (error) {
+      console.error('Error deleting booking:', error)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to delete booking. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
   // If not mounted yet, return a loading state
   if (!isMounted) {
     return (
@@ -226,6 +306,41 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
   if (isMobile) {
     return (
       <div className="space-y-4">
+        <div className="flex flex-wrap gap-2 items-center mb-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Payment Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={editingStatusFilter} onValueChange={setEditingStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Editing Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Editing</SelectItem>
+              {EDITING_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <div className="flex justify-end space-x-2 mb-4">
           <Button
             variant="outline"
@@ -251,15 +366,19 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
             {saveError}
           </div>
         )}
-        {sortedBookings.length === 0 ? (
+        {filteredBookings.length === 0 ? (
           <div className="bg-white rounded-lg p-6 text-center text-gray-500">No bookings found</div>
         ) : (
-          sortedBookings.map((booking) => (
+          filteredBookings.map((booking) => (
             <div key={booking.id} className="bg-white rounded-lg shadow overflow-hidden">
               <div className="p-4 border-b border-gray-100">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-medium text-gray-900">{booking.agent_name}</h3>
+                    <h3 className="font-medium text-gray-900">
+                      <Link href={`/bookings/${booking.id}`} className="cursor-pointer">
+                        {booking.agent_name}
+                      </Link>
+                    </h3>
                     <p className="text-sm text-gray-500">{booking.agent_company}</p>
                   </div>
                   <StatusBadge status={booking.status} />
@@ -269,12 +388,24 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
               <div className="p-4 space-y-3 border-b border-gray-100">
                 <div className="flex items-start">
                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
-                  <span className="text-sm">{formatAddress(booking.address)}</span>
+                  <span className="text-sm">
+                    <a
+                      href={formatAddress(booking.address)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline cursor-pointer"
+                      title="Open in Google Maps"
+                    >
+                      {formatAddress(booking.address)}
+                    </a>
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="text-sm">
                     <span className="text-gray-500">Date: </span>
-                    {formatDate(booking.preferred_date)}
+                    <Link href={`/bookings/${booking.id}`} className="cursor-pointer">
+                      {formatDate(booking.preferred_date)}
+                    </Link>
                   </div>
                   <div className="text-sm font-medium">{formatCurrency(booking.total_amount)}</div>
                 </div>
@@ -308,8 +439,11 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                     booking={booking}
                     onStatusChange={(status) => handleStatusChange(booking.id, status)}
                     onPaymentStatusChange={(status) => handlePaymentStatusChange(booking.id, status)}
+                    onEditingStatusChange={(status) => handleEditingStatusChange(booking.id, status)}
                     modifiedStatus={modifiedBookings[booking.id]?.status}
                     modifiedPaymentStatus={modifiedBookings[booking.id]?.payment_status}
+                    modifiedEditingStatus={modifiedBookings[booking.id]?.editing_status}
+                    onDelete={handleDeleteBooking}
                   />
                 </div>
               )}
@@ -323,7 +457,43 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
   // Desktop table view
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="p-4 border-b border-gray-200 flex justify-end space-x-2">
+      <div className="p-4 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Payment Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Payments</SelectItem>
+              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={editingStatusFilter} onValueChange={setEditingStatusFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Editing Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Editing</SelectItem>
+              {EDITING_STATUS_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex gap-2 justify-end">
         <Button
           variant="outline"
           size="sm"
@@ -342,6 +512,7 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
           <Save className="h-4 w-4 mr-2" />
           {isSaving ? "Saving..." : "Save Changes"}
         </Button>
+        </div>
       </div>
       {saveError && (
         <div className="p-4 bg-red-50 text-red-600 text-sm">
@@ -389,24 +560,37 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedBookings.length === 0 ? (
+            {filteredBookings.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                   No bookings found
                 </TableCell>
               </TableRow>
             ) : (
-              sortedBookings.map((booking, index) => (
+              filteredBookings.map((booking, index) => (
                 <React.Fragment key={booking.id}>
                   <TableRow className={index % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                     <TableCell className="font-medium">
-                      <div>{booking.agent_name}</div>
-                      <div className="text-xs text-gray-500">{booking.agent_company}</div>
+                      <Link href={`/bookings/${booking.id}`} className="cursor-pointer">
+                        <div>{booking.agent_name}</div>
+                      </Link>
                     </TableCell>
                     <TableCell>
-                      <div>{formatAddress(booking.address)}</div>
+                      <a
+                        href={formatAddress(booking.address)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline cursor-pointer"
+                        title="Open in Google Maps"
+                      >
+                        {formatAddress(booking.address)}
+                      </a>
                     </TableCell>
-                    <TableCell>{formatDate(booking.preferred_date)}</TableCell>
+                    <TableCell>
+                      <Link href={`/bookings/${booking.id}`} className="cursor-pointer">
+                        {formatDate(booking.preferred_date)}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <Select
                         value={modifiedBookings[booking.id]?.status || booking.status}
@@ -456,8 +640,11 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                           booking={booking}
                           onStatusChange={(status) => handleStatusChange(booking.id, status)}
                           onPaymentStatusChange={(status) => handlePaymentStatusChange(booking.id, status)}
+                          onEditingStatusChange={(status) => handleEditingStatusChange(booking.id, status)}
                           modifiedStatus={modifiedBookings[booking.id]?.status}
                           modifiedPaymentStatus={modifiedBookings[booking.id]?.payment_status}
+                          modifiedEditingStatus={modifiedBookings[booking.id]?.editing_status}
+                          onDelete={handleDeleteBooking}
                         />
                       </TableCell>
                     </TableRow>
@@ -490,15 +677,21 @@ function StatusBadge({ status }: { status: string }) {
 function ExpandedBookingDetails({ 
   booking, 
   onStatusChange, 
-  onPaymentStatusChange, 
+  onPaymentStatusChange,
+  onEditingStatusChange,
   modifiedStatus, 
-  modifiedPaymentStatus 
+  modifiedPaymentStatus,
+  modifiedEditingStatus,
+  onDelete
 }: {
   booking: Booking;
   onStatusChange: (status: string) => void;
   onPaymentStatusChange: (status: string) => void;
+  onEditingStatusChange: (status: string) => void;
   modifiedStatus?: string;
   modifiedPaymentStatus?: string;
+  modifiedEditingStatus?: string;
+  onDelete: (id: string) => Promise<void>;
 }): React.ReactElement {
   const isMobile = useMediaQuery("(max-width: 768px)")
 
@@ -538,6 +731,12 @@ function ExpandedBookingDetails({
 
   const address = parseAddress(booking.address)
   const services = parseServices(booking.services)
+
+  // Helper to create a Google Maps directions link from the address
+  const getGoogleMapsLink = (address: Address) => {
+    const addr = `${address.street || ''}${address.street2 ? ', ' + address.street2 : ''}, ${address.city || ''}, ${address.province || ''} ${address.zipCode || ''}`;
+    return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addr)}`;
+  };
 
   return (
     <div className={`p-4 ${isMobile ? "p-3" : "p-6"} bg-gray-50 border-t border-gray-200`}>
@@ -613,12 +812,12 @@ function ExpandedBookingDetails({
                 <span className="text-xs text-gray-500 block">Full Address</span>
                 <p className="text-sm">
                   {address.street ? (
-                    <>
+                    <a href={getGoogleMapsLink(address)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: 'inherit' }}>
                       {address.street}
                       {address.street2 ? `, ${address.street2}` : ""}
                       <br />
                       {address.city}, {address.province} {address.zipCode}
-                    </>
+                    </a>
                   ) : (
                     "Address not available"
                   )}
@@ -632,12 +831,10 @@ function ExpandedBookingDetails({
                 <span className="text-xs text-gray-500 block">Occupancy Status</span>
                 <p className="text-sm">{booking.property_status || "Not specified"}</p>
               </div>
-              {booking.notes && (
-                <div>
-                  <span className="text-xs text-gray-500 block">Notes</span>
-                  <p className="text-sm bg-gray-50 p-2 rounded">{booking.notes}</p>
-                </div>
-              )}
+              <div>
+                <span className="text-xs text-gray-500 block">Notes</span>
+                <p className="text-sm bg-gray-50 p-2 rounded">{booking.notes || "No notes available"}</p>
+              </div>
             </div>
           </div>
 
@@ -704,16 +901,52 @@ function ExpandedBookingDetails({
                   </SelectContent>
                 </Select>
               </div>
+              <div>
+                <span className="text-xs text-gray-500 block">Editing Status</span>
+                <Select
+                  value={modifiedEditingStatus || booking.editing_status}
+                  onValueChange={onEditingStatusChange}
+                >
+                  <SelectTrigger className={`w-[130px] border-0 focus:ring-0 ${
+                    EDITING_STATUS_OPTIONS.find(opt => opt.value === (modifiedEditingStatus || booking.editing_status))?.color
+                  }`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EDITING_STATUS_OPTIONS.map((option) => (
+                      <SelectItem 
+                        key={option.value} 
+                        value={option.value}
+                        className={`${option.color} ${option.hoverColor} focus:bg-opacity-100 data-[highlighted]:bg-opacity-100`}
+                      >
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div className="flex justify-end mt-4">
-        <Link href={`/bookings/${booking.id}`} passHref legacyBehavior>
-          <Button as="a" variant="outline" className="text-blue-600 border-blue-200 hover:bg-blue-50">
-            View Details
-          </Button>
-        </Link>
+      <div className="flex justify-end gap-2 mt-4">
+        <Button 
+          variant="outline" 
+          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+          asChild
+        >
+          <Link href={`/bookings/${booking.id}`}>View Details</Link>
+        </Button>
+        <Button 
+          variant="destructive" 
+          onClick={() => {
+            if (window.confirm('Are you sure you want to delete this booking? This action cannot be undone.')) {
+              onDelete(booking.id)
+            }
+          }}
+        >
+          Delete
+        </Button>
       </div>
     </div>
   )
