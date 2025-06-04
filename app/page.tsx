@@ -4,13 +4,12 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { BookingsTable } from "@/components/bookings-table"
 import { TopNavigation } from "@/components/top-navigation"
-import { Loader2, RefreshCw, Bell, User, FileText, Calendar, PlusCircle } from "lucide-react"
+import { Loader2, RefreshCw, Bell, User, FileText, Calendar, PlusCircle, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { DaySchedule } from "@/components/day-schedule"
 import { MetricsPanel } from "@/components/dashboard/MetricsPanel"
-import { ActionButtonsPanel } from "@/components/dashboard/ActionButtonsPanel"
 
 // Define the Booking type
 type Booking = {
@@ -273,6 +272,27 @@ export default function AdminDashboard() {
         <div className="flex flex-col items-center mb-8">
           <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
         </div>
+        <nav className="flex flex-col gap-2">
+          {/* Quick Links (Agent Reach first) */}
+          <a href="https://courageous-melba-d599a1.netlify.app/" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+            <span className="inline-block"><User className="w-4 h-4" /></span>Agent Reach
+          </a>
+          <a href="https://app.pixlmob.com/maidanghung" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+            <span className="inline-block"><User className="w-4 h-4" /></span>Editor Profile
+          </a>
+          <a href="https://app.squareup.com/dashboard/invoices/new" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+            <span className="inline-block"><FileText className="w-4 h-4" /></span>Generate Invoice
+          </a>
+          <span className="px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 opacity-50 cursor-not-allowed">
+            <span className="inline-block"><Calendar className="w-4 h-4" /></span>Open Calendar
+          </span>
+          <a href="https://www.rephotos.ca/book-now" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+            <span className="inline-block"><PlusCircle className="w-4 h-4" /></span>New Booking
+          </a>
+          <a href="https://app.netlify.com/teams/cooperthompson55955/projects" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+            <span className="inline-block"><Globe className="w-4 h-4" /></span>Netlify Projects
+          </a>
+        </nav>
       </aside>
       {/* Overlay sidebar for mobile and narrow desktop */}
       {sidebarOpen && (
@@ -282,6 +302,27 @@ export default function AdminDashboard() {
             <div className="flex flex-col items-center mb-8">
               <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
             </div>
+            <nav className="flex flex-col gap-2">
+              {/* Quick Links (Agent Reach first) */}
+              <a href="https://courageous-melba-d599a1.netlify.app/" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+                <span className="inline-block"><User className="w-4 h-4" /></span>Agent Reach
+              </a>
+              <a href="https://app.pixlmob.com/maidanghung" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+                <span className="inline-block"><User className="w-4 h-4" /></span>Editor Profile
+              </a>
+              <a href="https://app.squareup.com/dashboard/invoices/new" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+                <span className="inline-block"><FileText className="w-4 h-4" /></span>Generate Invoice
+              </a>
+              <span className="px-3 py-2 rounded-lg font-medium transition flex items-center gap-2 opacity-50 cursor-not-allowed">
+                <span className="inline-block"><Calendar className="w-4 h-4" /></span>Open Calendar
+              </span>
+              <a href="https://www.rephotos.ca/book-now" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+                <span className="inline-block"><PlusCircle className="w-4 h-4" /></span>New Booking
+              </a>
+              <a href="https://app.netlify.com/teams/cooperthompson55955/projects" target="_blank" rel="noopener noreferrer" className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition flex items-center gap-2">
+                <span className="inline-block"><Globe className="w-4 h-4" /></span>Netlify Projects
+              </a>
+            </nav>
           </aside>
         </div>
       )}
@@ -290,14 +331,14 @@ export default function AdminDashboard() {
         <TopNavigation onBurgerClick={() => setSidebarOpen((v) => !v)} />
         <main className="flex-1 w-full px-4 py-6 md:py-8">
           {/* Responsive Grid Layout - ensures proper sizing on all screen sizes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 w-full mb-6">
-            {/* Day Schedule - takes full width on mobile, half on medium, 4 cols on xl */}
-            <div className="md:col-span-1 xl:col-span-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-6">
+            {/* Day Schedule - takes full width on mobile, half on medium */}
+            <div className="w-full">
               <DaySchedule bookings={bookings} />
             </div>
             
-            {/* Metrics Panel - takes full width on mobile, half on medium, 5 cols on xl */}
-            <div className="md:col-span-1 xl:col-span-5">
+            {/* Metrics Panel - takes full width on mobile, half on medium */}
+            <div className="w-full">
               <MetricsPanel
                 totalBookings={totalBookings}
                 pendingBookings={pendingBookings}
@@ -307,11 +348,6 @@ export default function AdminDashboard() {
                 revenueThisWeek={revenueThisWeek}
                 onFilterChange={handleFilterChange}
               />
-            </div>
-            
-            {/* Action Buttons - takes full width on mobile/medium, 3 cols on xl */}
-            <div className="md:col-span-2 xl:col-span-3">
-              <ActionButtonsPanel />
             </div>
           </div>
           

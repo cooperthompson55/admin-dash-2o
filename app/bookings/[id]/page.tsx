@@ -645,13 +645,29 @@ export default function BookingDetailsPage() {
 
       if (!response.ok) {
         console.error('Error response from server:', responseData)
-        throw new Error(responseData.error || 'Failed to create project folders')
+        const err = new Error(responseData.error || 'Failed to create project folders');
+        if (responseData.details) (err as any).details = responseData.details;
+        throw err;
       }
 
       // Destructure the correct link names from the API response
       const { rawPhotosLink, editedMediaLink, finalMediaLink } = responseData
       console.log('Received links:', { rawPhotosLink, editedMediaLink, finalMediaLink })
       
+      // Optimistically update local state with new links
+      setForm((prev: any) => ({
+        ...prev,
+        raw_photos_link: rawPhotosLink,
+        final_edits_link: editedMediaLink,
+        delivery_page_link: finalMediaLink,
+      }));
+      setBooking((prev: any) => ({
+        ...prev,
+        raw_photos_link: rawPhotosLink,
+        final_edits_link: editedMediaLink,
+        delivery_page_link: finalMediaLink,
+      }));
+
       // Step 2: Fetch the latest booking from Supabase
       console.log('Fetching latest booking from Supabase...')
       const { data: latestBooking, error: fetchError } = await supabase
@@ -669,7 +685,7 @@ export default function BookingDetailsPage() {
         throw new Error('No booking found after folder creation')
       }
 
-      // Step 3: Update local state
+      // Step 3: Update local state with latest booking from Supabase (for consistency)
       console.log('Updating local state with new data')
       setForm(latestBooking)
       setBooking(latestBooking)
@@ -686,11 +702,41 @@ export default function BookingDetailsPage() {
         message: error?.message,
         stack: error?.stack,
       })
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create project folders or save links",
-        variant: "destructive",
-      })
+      
+      // Check if the error is likely due to Dropbox authentication issues
+      const errorMessage = (error?.message || '').toLowerCase()
+      const errorDetails = (error?.details || '').toLowerCase()
+      const isDropboxAuthError = 
+        errorMessage.includes('unauthorized') || 
+        errorMessage.includes('access token') || 
+        errorMessage.includes('authentication') || 
+        errorMessage.includes('forbidden') ||
+        errorMessage.includes('401') ||
+        errorMessage.includes('403') ||
+        errorDetails.includes('access token') ||
+        errorDetails.includes('authentication') ||
+        errorDetails.includes('unauthorized') ||
+        errorDetails.includes('forbidden') ||
+        errorDetails.includes('401') ||
+        errorDetails.includes('403')
+
+      if (isDropboxAuthError) {
+        toast({
+          title: "Dropbox Authentication Required",
+          description: "Redirecting to Dropbox authentication...",
+          variant: "default",
+        })
+        // Redirect to Dropbox auth page after a short delay
+        setTimeout(() => {
+          router.push('/dropbox-auth')
+        }, 500)
+      } else {
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to create project folders or save links",
+          variant: "destructive",
+        })
+      }
     } finally {
       setCreatingFolders(false)
     }
