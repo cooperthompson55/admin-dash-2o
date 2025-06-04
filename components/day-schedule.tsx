@@ -47,7 +47,7 @@ export const DaySchedule: React.FC<DayScheduleProps> = ({ bookings }) => {
   }, [])
 
   if (!selectedDate) {
-    return <div className="bg-white rounded-lg p-6 shadow max-w-sm w-full">Loading...</div>
+    return <div className="bg-white rounded-lg p-6 shadow-sm w-full">Loading...</div>
   }
 
   // Filter bookings for the selected day using start and end of day
@@ -100,7 +100,7 @@ export const DaySchedule: React.FC<DayScheduleProps> = ({ bookings }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg p-6 shadow max-w-sm w-full mt-6 pt-2">
+    <div className="bg-white rounded-lg p-6 shadow-sm w-full pt-2">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-semibold">Day Schedule</h2>
         <div className="flex gap-2 items-center">

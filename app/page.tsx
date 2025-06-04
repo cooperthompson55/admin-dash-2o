@@ -4,11 +4,13 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react"
 import { createClient } from "@supabase/supabase-js"
 import { BookingsTable } from "@/components/bookings-table"
 import { TopNavigation } from "@/components/top-navigation"
-import { Loader2, RefreshCw, Bell } from "lucide-react"
+import { Loader2, RefreshCw, Bell, User, FileText, Calendar, PlusCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/utils"
 import { useToast } from "@/components/ui/use-toast"
 import { DaySchedule } from "@/components/day-schedule"
+import { MetricsPanel } from "@/components/dashboard/MetricsPanel"
+import { ActionButtonsPanel } from "@/components/dashboard/ActionButtonsPanel"
 
 // Define the Booking type
 type Booking = {
@@ -39,6 +41,21 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 // Polling interval in milliseconds (30 seconds for more frequent checks)
 const POLLING_INTERVAL = 30 * 1000
 
+// Add this helper near the top, after other helpers
+function getDiscountInfo(total: number) {
+  if (total >= 1100) return { percent: 17, min: 1100, max: Infinity };
+  if (total >= 900) return { percent: 15, min: 900, max: 1099.99 };
+  if (total >= 700) return { percent: 12, min: 700, max: 899.99 };
+  if (total >= 500) return { percent: 10, min: 500, max: 699.99 };
+  if (total >= 350) return { percent: 5, min: 350, max: 499.99 };
+  if (total >= 199.99) return { percent: 3, min: 199.99, max: 349.99 };
+  return { percent: 0, min: 0, max: 199.98 };
+}
+function applyDiscount(total: number) {
+  const { percent } = getDiscountInfo(total);
+  return total * (1 - percent / 100);
+}
+
 export default function AdminDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,10 +63,44 @@ export default function AdminDashboard() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [newBookingsCount, setNewBookingsCount] = useState(0)
+  const [statusFilter, setStatusFilter] = useState<string>("all")
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
+  const [editingStatusFilter, setEditingStatusFilter] = useState<string>("all")
   const previousBookingCount = useRef(0)
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Test Supabase connection on component mount
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        console.log("Testing Supabase connection...")
+        console.log("Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL)
+        console.log("Supabase Key exists:", !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+        
+        const { data, error } = await supabase
+          .from('bookings')
+          .select('count')
+          .limit(1)
+        
+        if (error) {
+          console.error("Supabase connection test failed:", {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code
+          })
+        } else {
+          console.log("Supabase connection test successful:", data)
+        }
+      } catch (err) {
+        console.error("Unexpected error testing connection:", err)
+      }
+    }
+    
+    testConnection()
+  }, [])
 
   // Function to fetch all bookings
   const fetchBookings = useCallback(
@@ -65,16 +116,34 @@ export default function AdminDashboard() {
 
         console.log("Fetching bookings...", new Date().toISOString())
 
+        // Only fetch the last 30 days of bookings by default
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
         const { data, error: supabaseError } = await supabase
           .from("bookings")
-          .select("*")
-          .order("created_at", { ascending: false }) // Order by newest first
+          .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company")
+          .gte('created_at', thirtyDaysAgo.toISOString())
+          .order("created_at", { ascending: false })
+          .limit(100) // Limit to 100 bookings at a time
 
         if (supabaseError) {
-          console.error("Error fetching bookings:", supabaseError)
+          console.error("Error fetching bookings:", {
+            message: supabaseError.message,
+            details: supabaseError.details,
+            hint: supabaseError.hint,
+            code: supabaseError.code
+          })
           if (!silent) setError("Failed to load bookings. Please try again.")
           return
         }
+
+        // Add debug logging for successful query
+        console.log("Supabase query successful:", {
+          dataLength: data?.length,
+          firstBooking: data?.[0],
+          queryDate: thirtyDaysAgo.toISOString()
+        })
 
         // Check if we have new bookings
         if (previousBookingCount.current > 0 && data && data.length > previousBookingCount.current) {
@@ -172,6 +241,30 @@ export default function AdminDashboard() {
     setNewBookingsCount(0)
   }
 
+  const handleFilterChange = (filters: { status?: string, paymentStatus?: string, editingStatus?: string }) => {
+    if (filters.status) setStatusFilter(filters.status)
+    if (filters.paymentStatus) setPaymentStatusFilter(filters.paymentStatus)
+    if (filters.editingStatus) setEditingStatusFilter(filters.editingStatus)
+  }
+
+  // Calculate metrics for widgets
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+
+  const totalBookings = bookings.length;
+  const pendingBookings = bookings.filter(b => b.status === 'pending').length;
+  const editingJobs = bookings.filter(b => b.editing_status === 'in_editing').length;
+  const unpaidBookings = bookings.filter(b => b.payment_status === 'not_paid').length;
+  const completedThisWeek = bookings.filter(b => b.status === 'completed' && new Date(b.preferred_date) >= startOfWeek && new Date(b.preferred_date) < endOfWeek).length;
+  const revenueThisWeek = bookings
+    .filter(b => b.status === 'completed' && b.payment_status === 'paid' && new Date(b.preferred_date) >= startOfWeek && new Date(b.preferred_date) < endOfWeek)
+    .reduce((sum, b) => sum + applyDiscount(b.total_amount || 0), 0)
+    .toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar for desktop, overlay for mobile/narrow desktop */}
@@ -180,14 +273,6 @@ export default function AdminDashboard() {
         <div className="flex flex-col items-center mb-8">
           <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
         </div>
-        <nav className="flex flex-col gap-2">
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Dashboard</div>
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Calendar</div>
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Bookings</div>
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Clients</div>
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Reports</div>
-          <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Settings</div>
-        </nav>
       </aside>
       {/* Overlay sidebar for mobile and narrow desktop */}
       {sidebarOpen && (
@@ -197,14 +282,6 @@ export default function AdminDashboard() {
             <div className="flex flex-col items-center mb-8">
               <img src="/rephotos-logo.png" alt="RePhotos Logo" className="h-20 w-auto mb-2" />
             </div>
-            <nav className="flex flex-col gap-2">
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Dashboard</div>
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Calendar</div>
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Bookings</div>
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Clients</div>
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Reports</div>
-              <div className="px-3 py-2 rounded-lg hover:bg-gray-100 font-medium transition">Settings</div>
-            </nav>
           </aside>
         </div>
       )}
@@ -212,14 +289,41 @@ export default function AdminDashboard() {
       <div className="flex-1 flex flex-col">
         <TopNavigation onBurgerClick={() => setSidebarOpen((v) => !v)} />
         <main className="flex-1 w-full px-4 py-6 md:py-8">
-          <div className="flex flex-col lg:flex-row items-start w-full h-full">
-            <div className="w-full lg:w-[340px] lg:min-w-[300px] lg:max-w-[380px] lg:mr-4 mb-4 lg:mb-0">
+          {/* Responsive Grid Layout - ensures proper sizing on all screen sizes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 w-full mb-6">
+            {/* Day Schedule - takes full width on mobile, half on medium, 4 cols on xl */}
+            <div className="md:col-span-1 xl:col-span-4">
               <DaySchedule bookings={bookings} />
             </div>
-            <div className="flex-1 w-full">
-              <h2 className="text-2xl font-semibold mb-4">All Bookings</h2>
-              <BookingsTable bookings={bookings} onRefresh={handleManualRefresh} />
+            
+            {/* Metrics Panel - takes full width on mobile, half on medium, 5 cols on xl */}
+            <div className="md:col-span-1 xl:col-span-5">
+              <MetricsPanel
+                totalBookings={totalBookings}
+                pendingBookings={pendingBookings}
+                editingJobs={editingJobs}
+                unpaidBookings={unpaidBookings}
+                completedThisWeek={completedThisWeek}
+                revenueThisWeek={revenueThisWeek}
+                onFilterChange={handleFilterChange}
+              />
             </div>
+            
+            {/* Action Buttons - takes full width on mobile/medium, 3 cols on xl */}
+            <div className="md:col-span-2 xl:col-span-3">
+              <ActionButtonsPanel />
+            </div>
+          </div>
+          
+          <div className="w-full">
+            <h2 className="text-2xl font-semibold mb-4">All Bookings</h2>
+            <BookingsTable 
+              bookings={bookings} 
+              onRefresh={handleManualRefresh}
+              initialStatusFilter={statusFilter}
+              initialPaymentStatusFilter={paymentStatusFilter}
+              initialEditingStatusFilter={editingStatusFilter}
+            />
           </div>
         </main>
         {/* Debug info - remove in production */}

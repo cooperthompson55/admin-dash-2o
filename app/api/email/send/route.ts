@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { google } from 'googleapis'
+import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 
 // Initialize Supabase client
@@ -8,57 +8,51 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Initialize Gmail API client
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
-)
-
-oauth2Client.setCredentials({
-  refresh_token: process.env.GOOGLE_REFRESH_TOKEN
-})
-
-const gmail = google.gmail({ version: 'v1', auth: oauth2Client })
+// Initialize Resend client
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
+  // Set up response headers to ensure JSON response
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+
   try {
+    console.log('Starting email send process...')
+    
     const { to, subject, html, bookingId } = await request.json()
 
     if (!to || !subject || !html) {
+      console.error('Missing required fields:', { to, subject, hasHtml: !!html })
       return NextResponse.json(
         { error: 'Missing required fields' },
-        { status: 400 }
+        { status: 400, headers }
       )
     }
 
-    // Create email message
-    const message = [
-      'Content-Type: text/html; charset=utf-8',
-      'MIME-Version: 1.0',
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      '',
-      html
-    ].join('\n')
-
-    // Encode the message
-    const encodedMessage = Buffer.from(message)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '')
-
-    // Send the email
-    await gmail.users.messages.send({
-      userId: 'me',
-      requestBody: {
-        raw: encodedMessage
-      }
+    console.log('Sending email to:', to)
+    
+    // Send the email using Resend
+    const { data, error } = await resend.emails.send({
+      from: 'RePhotos <noreply@rephotos.ca>',
+      to,
+      subject,
+      html,
     })
 
-    // Update booking with delivery_email_sent = true
+    if (error) {
+      console.error('Error sending email:', error)
+      return NextResponse.json(
+        { error: 'Failed to send email', details: error.message },
+        { status: 500, headers }
+      )
+    }
+
+    console.log('Email sent successfully:', data)
+
+    // Update booking with delivery_email_sent = true if bookingId is provided
     if (bookingId) {
+      console.log('Updating booking status:', bookingId)
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ delivery_email_sent: true })
@@ -69,12 +63,22 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('Error sending email:', error)
+    return NextResponse.json({ success: true }, { headers })
+  } catch (error: any) {
+    console.error('Error sending email:', {
+      name: error?.name,
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      stack: error?.stack
+    })
+    
     return NextResponse.json(
-      { error: 'Failed to send email' },
-      { status: 500 }
+      { 
+        error: 'Failed to send email',
+        details: error?.message || 'Unknown error'
+      },
+      { status: 500, headers }
     )
   }
 } 

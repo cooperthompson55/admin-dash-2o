@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { formatDate, formatCurrency } from "@/lib/utils"
-import { ChevronUp, ChevronDown, Phone, Mail, MapPin, Clock, Save } from "lucide-react"
+import { ChevronUp, ChevronDown, Phone, Mail, MapPin, Clock, Save, Check, Copy, CheckCheck } from "lucide-react"
 import { useMediaQuery } from "@/hooks/use-media-query"
 import { RelativeTime } from "@/components/relative-time"
 import React from "react"
@@ -61,6 +61,9 @@ type SortDirection = "asc" | "desc"
 interface BookingsTableProps {
   bookings: Booking[]
   onRefresh: () => void
+  initialStatusFilter?: string
+  initialPaymentStatusFilter?: string
+  initialEditingStatusFilter?: string
 }
 
 const STATUS_OPTIONS = [
@@ -94,7 +97,87 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 })
 
-export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
+// Discount helpers
+function getDiscountInfo(total: number) {
+  if (total >= 1100) return { percent: 17, min: 1100, max: Infinity };
+  if (total >= 900) return { percent: 15, min: 900, max: 1099.99 };
+  if (total >= 700) return { percent: 12, min: 700, max: 899.99 };
+  if (total >= 500) return { percent: 10, min: 500, max: 699.99 };
+  if (total >= 350) return { percent: 5, min: 350, max: 499.99 };
+  if (total >= 199.99) return { percent: 3, min: 199.99, max: 349.99 };
+  return { percent: 0, min: 0, max: 199.98 };
+}
+function applyDiscount(total: number) {
+  const { percent } = getDiscountInfo(total);
+  return total * (1 - percent / 100);
+}
+
+// Add this helper function near the top of the file
+function formatAddress(addressData: string | Address | null | undefined): string {
+  if (!addressData) {
+    return ""
+  }
+
+  if (typeof addressData === "string") {
+    return addressData
+  }
+
+  const { street, street2, city, province, zipCode } = addressData
+  return `${street}${street2 ? `, ${street2}` : ""}, ${city}, ${province} ${zipCode}`
+}
+
+// Add this helper function for Google Maps link
+function getGoogleMapsLink(addressData: string | Address | null | undefined): string {
+  if (!addressData) {
+    return "#"
+  }
+
+  const address = typeof addressData === "string" 
+    ? addressData 
+    : `${addressData.street}${addressData.street2 ? `, ${addressData.street2}` : ""}, ${addressData.city}, ${addressData.province} ${addressData.zipCode}`
+  
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+}
+
+// Add PACKAGES constant (copy from app/bookings/[id]/page.tsx if not imported)
+const PACKAGES: Record<string, Record<string, { price: number; includes: string[] }>> = {
+  'Essentials Package': {
+    '0–999 sq ft': { price: 229.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '1000–1999 sq ft': { price: 289.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '2000–2999 sq ft': { price: 349.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '3000–3999 sq ft': { price: 389.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '4000–4999 sq ft': { price: 449.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+  },
+  'Deluxe Tour Package': {
+    '0–999 sq ft': { price: 489.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '1000–1999 sq ft': { price: 579.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '2000–2999 sq ft': { price: 649.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '3000–3999 sq ft': { price: 719.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '4000–4999 sq ft': { price: 799.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+  },
+  'Marketing Pro Package': {
+    '0–999 sq ft': { price: 829.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '1000–1999 sq ft': { price: 959.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '2000–2999 sq ft': { price: 1079.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '3000–3999 sq ft': { price: 1179.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '4000–4999 sq ft': { price: 1299.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+  },
+  'Premium Seller Experience': {
+    '0–999 sq ft': { price: 1069.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '1000–1999 sq ft': { price: 1199.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '2000–2999 sq ft': { price: 1319.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '3000–3999 sq ft': { price: 1419.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '4000–4999 sq ft': { price: 1539.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+  },
+};
+
+export function BookingsTable({ 
+  bookings, 
+  onRefresh,
+  initialStatusFilter = "all",
+  initialPaymentStatusFilter = "all",
+  initialEditingStatusFilter = "all"
+}: BookingsTableProps) {
   const [sortField, setSortField] = useState<SortField>("created_at")
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null)
@@ -108,9 +191,16 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
   const [isMounted, setIsMounted] = useState(false)
   const isMobile = useMediaQuery("(max-width: 768px)")
   const { toast } = useToast()
-  const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("all")
-  const [editingStatusFilter, setEditingStatusFilter] = useState<string>("all")
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter)
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>(initialPaymentStatusFilter)
+  const [editingStatusFilter, setEditingStatusFilter] = useState<string>(initialEditingStatusFilter)
+
+  // Update filters when initial values change
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter)
+    setPaymentStatusFilter(initialPaymentStatusFilter)
+    setEditingStatusFilter(initialEditingStatusFilter)
+  }, [initialStatusFilter, initialPaymentStatusFilter, initialEditingStatusFilter])
 
   useEffect(() => {
     setIsMounted(true)
@@ -251,37 +341,22 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
     }
   }
 
-  // Format address for display (now only main address and city)
-  const formatAddress = (addressData: string | Address | null | undefined): string => {
-    const address = parseAddress(addressData)
-    // Only show street and city
-    return `${address.street || ""}${address.city ? ", " + address.city : ""}`
-  }
-
   // Add delete booking function
   const handleDeleteBooking = async (bookingId: string) => {
     try {
-      console.log('Attempting to delete booking:', bookingId)
-      console.log('Using Supabase URL:', supabaseUrl)
-      
-      const { error } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('id', bookingId)
-
-      if (error) {
-        console.error('Supabase delete error:', error)
-        throw error
+      const response = await fetch('/api/bookings/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: bookingId })
+      })
+      const result = await response.json()
+      if (!response.ok || result.error) {
+        throw new Error(result.error || 'Failed to delete booking')
       }
-
-      console.log('Delete operation completed successfully')
-      
       toast({
         title: "Success",
         description: "Booking deleted successfully",
       })
-      
-      // Refresh the bookings list
       onRefresh()
     } catch (error) {
       console.error('Error deleting booking:', error)
@@ -390,7 +465,7 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                   <MapPin className="h-4 w-4 text-gray-400 mt-0.5 mr-2 flex-shrink-0" />
                   <span className="text-sm">
                     <a
-                      href={formatAddress(booking.address)}
+                      href={getGoogleMapsLink(booking.address)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:underline cursor-pointer"
@@ -407,7 +482,7 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                       {formatDate(booking.preferred_date)}
                     </Link>
                   </div>
-                  <div className="text-sm font-medium">{formatCurrency(booking.total_amount)}</div>
+                  <div className="text-sm font-medium">{formatCurrency(applyDiscount(booking.total_amount))}</div>
                 </div>
               </div>
 
@@ -577,7 +652,7 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                     </TableCell>
                     <TableCell>
                       <a
-                        href={formatAddress(booking.address)}
+                        href={getGoogleMapsLink(booking.address)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline cursor-pointer"
@@ -614,7 +689,7 @@ export function BookingsTable({ bookings, onRefresh }: BookingsTableProps) {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>{formatCurrency(booking.total_amount)}</TableCell>
+                    <TableCell>{formatCurrency(applyDiscount(booking.total_amount))}</TableCell>
                     <TableCell>
                       <RelativeTime date={booking.created_at} />
                     </TableCell>
@@ -694,6 +769,17 @@ function ExpandedBookingDetails({
   onDelete: (id: string) => Promise<void>;
 }): React.ReactElement {
   const isMobile = useMediaQuery("(max-width: 768px)")
+  const [copiedEmail, setCopiedEmail] = useState(false)
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedEmail(true)
+      setTimeout(() => setCopiedEmail(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+    }
+  }
 
   // Parse address - handles both string and object
   const parseAddress = (addressData: string | Address | null | undefined): Address => {
@@ -753,13 +839,21 @@ function ExpandedBookingDetails({
               </div>
               <div>
                 <span className="text-xs text-gray-500 block">Email</span>
-                <a
-                  href={`mailto:${booking.agent_email}`}
-                  className="text-sm text-blue-600 hover:underline flex items-center"
-                >
-                  <Mail className="h-3 w-3 mr-1" />
-                  {booking.agent_email || "N/A"}
-                </a>
+                <div className="flex items-center gap-2 group">
+                  <p className="text-sm">{booking.agent_email || "N/A"}</p>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => copyToClipboard(booking.agent_email)}
+                  >
+                    {copiedEmail ? (
+                      <CheckCheck className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
               <div>
                 <span className="text-xs text-gray-500 block">Phone</span>
@@ -778,27 +872,52 @@ function ExpandedBookingDetails({
           {/* Services Booked */}
           <div className="bg-white rounded-lg shadow-sm p-4">
             <h3 className="text-md font-semibold text-gray-800 mb-3">Services Booked</h3>
-            {services && services.length > 0 ? (
-              <ul className="space-y-2">
-                {services.map((service, index) => (
-                  <li
-                    key={index}
-                    className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0"
-                  >
-                    <span className="text-sm">
-                      {service.name} {service.count > 1 ? `(x${service.count})` : ""}
-                    </span>
-                    <span className="text-sm font-medium">{formatCurrency(service.price)}</span>
-                  </li>
-                ))}
-                <li className="flex justify-between items-center pt-2 mt-2 border-t border-gray-200">
-                  <span className="text-sm font-medium">Total</span>
-                  <span className="text-sm font-bold">{formatCurrency(booking.total_amount)}</span>
-                </li>
-              </ul>
-            ) : (
-              <p className="text-sm text-gray-500">No services listed</p>
-            )}
+            {(() => {
+              const packageNames = Object.keys(PACKAGES);
+              const propertySize = booking.property_size;
+              const packageServices = services.filter((s: any) => packageNames.includes(s.name));
+              const aLaCarteServices = services.filter((s: any) => !packageNames.includes(s.name));
+              return (
+                <>
+                  {packageServices.length > 0 && (
+                    <div className="mb-4 space-y-6">
+                      {packageServices.map((pkg: any, idx: number) => {
+                        const pkgInfo = PACKAGES[pkg.name]?.[propertySize];
+                        if (!pkgInfo) return null;
+                        return (
+                          <div key={pkg.name + idx} className="border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
+                            <div className="font-bold text-blue-700 text-lg">{pkg.name} <span className="text-gray-500 font-normal">({propertySize})</span></div>
+                            <div className="text-md font-semibold mb-1">Package Price: ${pkgInfo.price.toFixed(2)}</div>
+                            <div className="text-sm text-gray-700 mb-2">Includes:</div>
+                            <ul className="list-disc list-inside mb-2">
+                              {pkgInfo.includes.map((inc, i) => (
+                                <li key={i}>{inc}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {aLaCarteServices.length > 0 && (
+                    <div>
+                      <div className="text-md font-semibold mb-1">A La Carte Services:</div>
+                      <ul className="space-y-2">
+                        {aLaCarteServices.map((s: any, i: number) => (
+                          <li key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
+                            <span className="text-sm">{s.name}{s.count && s.count > 1 ? ` (x${s.count})` : ""}</span>
+                            <span className="text-sm font-medium">{formatCurrency(s.price)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="mt-4 font-bold">
+                    Total: {formatCurrency(booking.total_amount)}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
 

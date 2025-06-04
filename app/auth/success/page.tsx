@@ -1,10 +1,10 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Check } from 'lucide-react'
 
-export default function AuthSuccessPage() {
+function AuthSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -61,10 +61,24 @@ export default function AuthSuccessPage() {
         </div>
 
         <p className="text-gray-600 mt-6">
-          Copy your refresh token and add it to your .env.local file as GOOGLE_REFRESH_TOKEN.
-          Redirecting back in 10 seconds...
+          For services like Dropbox, access and refresh tokens are typically handled securely in cookies.
+          You will be redirected back in 10 seconds...
         </p>
       </div>
     </div>
+  )
+}
+
+export default function AuthSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <p>Loading...</p>
+        </div>
+      </div>
+    }>
+      <AuthSuccessContent />
+    </Suspense>
   )
 } 

@@ -100,16 +100,6 @@ Your Media Team`
           <DialogTitle className="flex items-center gap-2">
             <Mail className="h-5 w-5" />
             New Email
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <span className="text-muted-foreground">ⓘ</span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Send your final media, invoice, and message to the client directly from here.</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </DialogTitle>
         </DialogHeader>
 
