@@ -19,7 +19,7 @@ const EMAIL_CONFIG = {
 };
 
 // Add version logging
-console.log("Booking Confirmation Function version: 1.1.0");
+console.log("Booking Confirmation Function version: 1.2.0");
 console.log("Function started at:", new Date().toISOString());
 
 // Check if API key exists and log its presence (but not the actual key)
@@ -40,7 +40,7 @@ if (!RESEND_API_KEY) {
 }
 
 // Initialize Resend client
-let resend;
+let resend: Resend;
 try {
   console.log("Initializing Resend client...");
   resend = new Resend(RESEND_API_KEY);
@@ -50,8 +50,40 @@ try {
   throw error;
 }
 
+// Package definitions
+const PACKAGES: Record<string, Record<string, { price: number; includes: string[] }>> = {
+  'Essentials Package': {
+    '0–999 sq ft': { price: 229.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '1000–1999 sq ft': { price: 289.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '2000–2999 sq ft': { price: 349.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '3000–3999 sq ft': { price: 389.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+    '4000–4999 sq ft': { price: 449.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+  },
+  'Deluxe Tour Package': {
+    '0–999 sq ft': { price: 489.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '1000–1999 sq ft': { price: 579.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '2000–2999 sq ft': { price: 649.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '3000–3999 sq ft': { price: 719.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+    '4000–4999 sq ft': { price: 799.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+  },
+  'Marketing Pro Package': {
+    '0–999 sq ft': { price: 829.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '1000–1999 sq ft': { price: 959.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '2000–2999 sq ft': { price: 1079.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '3000–3999 sq ft': { price: 1179.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+    '4000–4999 sq ft': { price: 1299.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+  },
+  'Premium Seller Experience': {
+    '0–999 sq ft': { price: 1069.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '1000–1999 sq ft': { price: 1199.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '2000–2999 sq ft': { price: 1319.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '3000–3999 sq ft': { price: 1419.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+    '4000–4999 sq ft': { price: 1539.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+  },
+};
+
 // --- VOLUME DISCOUNT HELPERS ---
-function getDiscountPercent(amount) {
+function getDiscountPercent(amount: number): number {
   if (amount >= 1100) return 17;
   if (amount >= 900) return 15;
   if (amount >= 700) return 12;
@@ -61,7 +93,7 @@ function getDiscountPercent(amount) {
   return 0;
 }
 
-function calculateDiscountedTotal(amount) {
+function calculateDiscountedTotal(amount: number) {
   const percent = getDiscountPercent(amount);
   const discount = +(amount * (percent / 100)).toFixed(2);
   return {
@@ -71,8 +103,61 @@ function calculateDiscountedTotal(amount) {
   };
 }
 
+// Helper function to format services for email
+function formatServicesForEmail(services: any[], propertySize: string) {
+  const packageNames = Object.keys(PACKAGES);
+  
+  // Separate packages from individual services
+  const packageServices = services.filter((s: any) => packageNames.includes(s.name));
+  const individualServices = services.filter((s: any) => !packageNames.includes(s.name));
+  
+  // Get all services included in packages to avoid double-listing
+  let allPackageIncludes: string[] = [];
+  packageServices.forEach((pkg: any) => {
+    const pkgInfo = PACKAGES[pkg.name]?.[propertySize];
+    if (pkgInfo) {
+      allPackageIncludes = allPackageIncludes.concat(pkgInfo.includes);
+    }
+  });
+  
+  // Filter individual services to only show those not included in packages
+  const additionalServices = individualServices.filter((s: any) => 
+    !allPackageIncludes.includes(s.name)
+  );
+  
+  let servicesSections: string[] = [];
+  
+  // Format packages
+  if (packageServices.length > 0) {
+    packageServices.forEach((pkg: any) => {
+      const pkgInfo = PACKAGES[pkg.name]?.[propertySize];
+      if (pkgInfo) {
+        let packageSection = `📦 ${pkg.name} (${propertySize}) - $${pkgInfo.price.toFixed(2)}\n`;
+        packageSection += `   Includes:\n`;
+        pkgInfo.includes.forEach((include) => {
+          packageSection += `   • ${include}\n`;
+        });
+        servicesSections.push(packageSection.trim());
+      }
+    });
+  }
+  
+  // Format additional individual services
+  if (additionalServices.length > 0) {
+    let individualSection = "🔧 Additional Services:\n";
+    additionalServices.forEach((service: any) => {
+      const count = service.count || 1;
+      const total = service.total || (service.price * count);
+      individualSection += `   • ${service.name}${count > 1 ? ` (x${count})` : ''} - $${total.toFixed(2)}\n`;
+    });
+    servicesSections.push(individualSection.trim());
+  }
+  
+  return servicesSections.join('\n\n');
+}
+
 // Helper function to validate booking record
-function validateBookingRecord(record) {
+function validateBookingRecord(record: any) {
   const requiredFields = [
     'property_size',
     'services',
@@ -109,7 +194,7 @@ function validateBookingRecord(record) {
 }
 
 // Helper function to send email
-async function sendEmail(to, subject, text) {
+async function sendEmail(to: string | string[], subject: string, text: string) {
   try {
     console.log("Attempting to send email:", {
       from: EMAIL_CONFIG.from,
@@ -137,18 +222,23 @@ async function sendEmail(to, subject, text) {
     }
 
     return response;
-  } catch (error) {
-    console.error("Error sending email:", {
-      error: error.message,
-      stack: error.stack,
-      cause: error.cause,
-      from: EMAIL_CONFIG.from
-    });
-    throw error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error sending email:", {
+        error: error.message,
+        stack: error.stack,
+        cause: (error as any).cause,
+        from: EMAIL_CONFIG.from
+      });
+      throw error;
+    } else {
+      console.error("Unknown error sending email:", error);
+      throw new Error("Unknown error sending email");
+    }
   }
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const requestId = crypto.randomUUID();
   console.log(`[${requestId}] Booking confirmation function called at:`, new Date().toISOString());
   console.log(`[${requestId}] Request URL:`, req.url);
@@ -189,11 +279,11 @@ serve(async (req) => {
           },
           status: 200
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`[${requestId}] Test email failed:`, error);
         return new Response(JSON.stringify({
           error: "Test email failed",
-          details: error.message,
+          details: error instanceof Error ? error.message : 'Unknown error',
           requestId,
           timestamp: new Date().toISOString(),
           from: EMAIL_CONFIG.from
@@ -243,13 +333,17 @@ serve(async (req) => {
       // Validate the booking record
       validateBookingRecord(record);
       console.log(`[${requestId}] Booking record validation passed`);
-    } catch (e) {
-      console.error(`[${requestId}] Request parsing/validation failed:`, {
-        error: e.message,
-        stack: e.stack,
-        body: body.substring(0, 1000) // Log first 1000 chars of body for debugging
-      });
-      throw new Error(`Invalid request data: ${e.message}`);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.error(`[${requestId}] Request parsing/validation failed:`, {
+          error: e.message,
+          stack: e.stack,
+          body: body.substring(0, 1000) // Log first 1000 chars of body for debugging
+        });
+      } else {
+        console.error(`[${requestId}] Unknown error parsing request body:`, e);
+      }
+      throw new Error(`Invalid request data: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
 
     // Log the parsed record (excluding sensitive data)
@@ -281,10 +375,8 @@ serve(async (req) => {
       agent_company
     } = record;
 
-    // Format services for display
-    const serviceList = services.map((service) =>
-      `${service.name} (${service.count}x) - $${service.total}`
-    ).join("\n");
+    // Format services for display using new package-aware function
+    const serviceList = formatServicesForEmail(services, property_size);
 
     // Format address
     const addressStr = typeof address === 'string'
@@ -292,7 +384,7 @@ serve(async (req) => {
       : `${address.street}, ${address.city}, ${address.province} ${address.zipCode}`;
 
     // Format time for display (convert 24h to 12h format)
-    const formatTime = (timeStr) => {
+    const formatTime = (timeStr: string) => {
       const [hours, minutes] = timeStr.split(':');
       const hour = parseInt(hours);
       const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -306,9 +398,13 @@ serve(async (req) => {
 
     let priceSection = '';
     if (discountInfo.percent > 0) {
-      priceSection = `Subtotal: $${rawTotal.toFixed(2)}\nVolume Discount: -$${discountInfo.discount.toFixed(2)}\nTotal After Discount: $${discountInfo.final.toFixed(2)}`;
+      priceSection = `PRICING BREAKDOWN
+Subtotal: $${rawTotal.toFixed(2)}
+Volume Discount (${discountInfo.percent}%): -$${discountInfo.discount.toFixed(2)}
+Total After Discount: $${discountInfo.final.toFixed(2)}`;
     } else {
-      priceSection = `Total Price: $${rawTotal.toFixed(2)}`;
+      priceSection = `TOTAL PRICE
+$${rawTotal.toFixed(2)}`;
     }
 
     const emailBody = `Dear ${agent_name},
@@ -333,8 +429,7 @@ ${serviceList}
 
 ${priceSection}
 
-${notes ? `ADDITIONAL NOTES\n${notes}` : ''}
-
+${notes ? `ADDITIONAL NOTES\n${notes}\n` : ''}
 AGENT INFORMATION
 • Name: ${agent_name}
 • Email: ${agent_email}
@@ -378,34 +473,53 @@ ${EMAIL_CONFIG.companyName.toLowerCase()}.ca`.trim();
         },
         status: 200
       });
-    } catch (emailError) {
-      console.error(`[${requestId}] Failed to send booking confirmation email:`, {
-        error: emailError.message,
-        stack: emailError.stack,
-        cause: emailError.cause
-      });
-      throw emailError;
+    } catch (emailError: unknown) {
+      if (emailError instanceof Error) {
+        console.error(`[${requestId}] Failed to send booking confirmation email:`, {
+          error: emailError.message,
+          stack: emailError.stack,
+          cause: (emailError as any).cause
+        });
+        throw emailError;
+      } else {
+        console.error(`[${requestId}] Unknown error sending booking confirmation email:`, emailError);
+        throw new Error("Unknown error sending booking confirmation email");
+      }
     }
-  } catch (error) {
-    // Enhanced error logging
-    console.error(`[${requestId}] Error in request handling:`, {
-      error: error.message,
-      stack: error.stack,
-      cause: error.cause,
-      requestId
-    });
-
-    return new Response(JSON.stringify({
-      error: "Failed to process booking confirmation",
-      details: error.message,
-      requestId,
-      timestamp: new Date().toISOString()
-    }), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      },
-      status: 500
-    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`[${requestId}] Error in request handling:`, {
+        error: error.message,
+        stack: error.stack,
+        cause: (error as any).cause,
+        requestId
+      });
+      return new Response(JSON.stringify({
+        error: "Failed to process request",
+        details: error.message,
+        requestId,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        },
+        status: 500
+      });
+    } else {
+      console.error(`[${requestId}] Unknown error in request handling:`, error);
+      return new Response(JSON.stringify({
+        error: "Failed to process request",
+        details: "Unknown error",
+        requestId,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        },
+        status: 500
+      });
+    }
   }
 }); 

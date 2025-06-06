@@ -34,7 +34,7 @@ if (!RESEND_API_KEY) {
   throw new Error("RESEND_API_KEY is not configured");
 }
 // Initialize Resend client
-let resend;
+let resend: Resend;
 try {
   console.log("Initializing Resend client...");
   resend = new Resend(RESEND_API_KEY);
@@ -44,7 +44,7 @@ try {
   throw error;
 }
 // --- VOLUME DISCOUNT HELPERS ---
-function getDiscountPercent(amount) {
+function getDiscountPercent(amount: number): number {
   if (amount >= 1100) return 17;
   if (amount >= 900) return 15;
   if (amount >= 700) return 12;
@@ -53,7 +53,7 @@ function getDiscountPercent(amount) {
   if (amount >= 199.99) return 3;
   return 0;
 }
-function calculateDiscountedTotal(amount) {
+function calculateDiscountedTotal(amount: number) {
   const percent = getDiscountPercent(amount);
   const discount = +(amount * (percent / 100)).toFixed(2);
   return {
@@ -63,7 +63,7 @@ function calculateDiscountedTotal(amount) {
   };
 }
 // Helper function to validate booking record
-function validateBookingRecord(record) {
+function validateBookingRecord(record: any) {
   const requiredFields = [
     'property_size',
     'services',
@@ -99,7 +99,7 @@ function validateBookingRecord(record) {
   return true;
 }
 // Helper function to send email
-async function sendEmail(to, subject, text) {
+async function sendEmail(to: string | string[], subject: string, text: string) {
   try {
     console.log("Attempting to send email:", {
       from: EMAIL_CONFIG.from,
@@ -123,17 +123,22 @@ async function sendEmail(to, subject, text) {
       throw new Error(response.error.message);
     }
     return response;
-  } catch (error) {
-    console.error("Error sending email:", {
-      error: error.message,
-      stack: error.stack,
-      cause: error.cause,
-      from: EMAIL_CONFIG.from
-    });
-    throw error;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error("Error sending email:", {
+        error: error.message,
+        stack: error.stack,
+        cause: (error as any).cause,
+        from: EMAIL_CONFIG.from
+      });
+      throw error;
+    } else {
+      console.error("Unknown error sending email:", error);
+      throw new Error("Unknown error sending email");
+    }
   }
 }
-serve(async (req)=>{
+serve(async (req: Request)=>{
   const requestId = crypto.randomUUID();
   console.log(`[${requestId}] Function called at:`, new Date().toISOString());
   console.log(`[${requestId}] Request URL:`, req.url);
@@ -169,11 +174,11 @@ serve(async (req)=>{
           },
           status: 200
         });
-      } catch (error) {
+      } catch (error: unknown) {
         console.error(`[${requestId}] Test email failed:`, error);
         return new Response(JSON.stringify({
           error: "Test email failed",
-          details: error.message,
+          details: error instanceof Error ? error.message : 'Unknown error',
           requestId,
           timestamp: new Date().toISOString(),
           from: EMAIL_CONFIG.from
@@ -218,13 +223,17 @@ serve(async (req)=>{
       // Validate the booking record
       validateBookingRecord(record);
       console.log(`[${requestId}] Booking record validation passed`);
-    } catch (e) {
-      console.error(`[${requestId}] Request parsing/validation failed:`, {
-        error: e.message,
-        stack: e.stack,
-        body: body.substring(0, 1000) // Log first 1000 chars of body for debugging
-      });
-      throw new Error(`Invalid request data: ${e.message}`);
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        console.error(`[${requestId}] Request parsing/validation failed:`, {
+          error: e.message,
+          stack: e.stack,
+          body: body.substring(0, 1000) // Log first 1000 chars of body for debugging
+        });
+      } else {
+        console.error(`[${requestId}] Unknown error parsing request body:`, e);
+      }
+      throw new Error(`Invalid request data: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
     // Log the parsed record (excluding sensitive data)
     console.log(`[${requestId}] Processing booking record:`, {
@@ -241,11 +250,11 @@ serve(async (req)=>{
     });
     const { property_size, services, total_amount, address, notes, preferred_date, time, property_status, agent_name, agent_email, agent_phone, agent_company } = record;
     // Format services for display
-    const serviceList = services.map((service)=>`${service.name} (${service.count}x) - $${service.total}`).join("\n");
+    const serviceList = services.map((service: { name: string; count: number; total: number; })=>`${service.name} (${service.count}x) - $${service.total}`).join("\n");
     // Format address
     const addressStr = typeof address === 'string' ? address : `${address.street}, ${address.city}, ${address.province} ${address.zipCode}`;
     // Format time for display (convert 24h to 12h format)
-    const formatTime = (timeStr)=>{
+    const formatTime = (timeStr: string)=>{
       const [hours, minutes] = timeStr.split(':');
       const hour = parseInt(hours);
       const ampm = hour >= 12 ? 'PM' : 'AM';
@@ -324,33 +333,53 @@ ${EMAIL_CONFIG.companyName.toLowerCase()}.ca`.trim();
         },
         status: 200
       });
-    } catch (emailError) {
-      console.error(`[${requestId}] Failed to send booking confirmation email:`, {
-        error: emailError.message,
-        stack: emailError.stack,
-        cause: emailError.cause
-      });
-      throw emailError;
+    } catch (emailError: unknown) {
+      if (emailError instanceof Error) {
+        console.error(`[${requestId}] Failed to send booking confirmation email:`, {
+          error: emailError.message,
+          stack: emailError.stack,
+          cause: (emailError as any).cause
+        });
+        throw emailError;
+      } else {
+        console.error(`[${requestId}] Unknown error sending booking confirmation email:`, emailError);
+        throw new Error("Unknown error sending booking confirmation email");
+      }
     }
-  } catch (error) {
-    // Enhanced error logging
-    console.error(`[${requestId}] Error in request handling:`, {
-      error: error.message,
-      stack: error.stack,
-      cause: error.cause,
-      requestId
-    });
-    return new Response(JSON.stringify({
-      error: "Failed to process request",
-      details: error.message,
-      requestId,
-      timestamp: new Date().toISOString()
-    }), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      },
-      status: 500
-    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(`[${requestId}] Error in request handling:`, {
+        error: error.message,
+        stack: error.stack,
+        cause: (error as any).cause,
+        requestId
+      });
+      return new Response(JSON.stringify({
+        error: "Failed to process request",
+        details: error.message,
+        requestId,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        },
+        status: 500
+      });
+    } else {
+      console.error(`[${requestId}] Unknown error in request handling:`, error);
+      return new Response(JSON.stringify({
+        error: "Failed to process request",
+        details: "Unknown error",
+        requestId,
+        timestamp: new Date().toISOString()
+      }), {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json"
+        },
+        status: 500
+      });
+    }
   }
 });

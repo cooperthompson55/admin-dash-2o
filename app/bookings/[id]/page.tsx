@@ -654,42 +654,38 @@ export default function BookingDetailsPage() {
       const { rawPhotosLink, editedMediaLink, finalMediaLink } = responseData
       console.log('Received links:', { rawPhotosLink, editedMediaLink, finalMediaLink })
       
-      // Optimistically update local state with new links
-      setForm((prev: any) => ({
-        ...prev,
+      // Update form state with new links
+      const updatedForm = {
+        ...form,
         raw_photos_link: rawPhotosLink,
         final_edits_link: editedMediaLink,
         delivery_page_link: finalMediaLink,
-      }));
-      setBooking((prev: any) => ({
-        ...prev,
-        raw_photos_link: rawPhotosLink,
-        final_edits_link: editedMediaLink,
-        delivery_page_link: finalMediaLink,
-      }));
+      };
+      
+      // Save the updated links to the database
+      console.log('Saving updated links to database...');
+      const saveResponse = await fetch('/api/bookings/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify([updatedForm]),
+      });
 
-      // Step 2: Fetch the latest booking from Supabase
-      console.log('Fetching latest booking from Supabase...')
-      const { data: latestBooking, error: fetchError } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', bookingId)
-        .single();
-
-      if (fetchError) {
-        console.error('Error fetching latest booking:', fetchError)
-        throw new Error(fetchError.message || 'Failed to fetch latest booking')
+      if (!saveResponse.ok) {
+        const error = await saveResponse.json();
+        throw new Error(error.error || 'Failed to save links to database');
       }
 
-      if (!latestBooking) {
-        throw new Error('No booking found after folder creation')
-      }
+      const { data: savedData } = await saveResponse.json();
+      console.log('Links saved successfully:', savedData);
 
-      // Step 3: Update local state with latest booking from Supabase (for consistency)
-      console.log('Updating local state with new data')
-      setForm(latestBooking)
-      setBooking(latestBooking)
-      setEditing(false)
+      // Update local state with saved data
+      setForm(savedData[0]);
+      setBooking(savedData[0]);
+
+      // Fetch the latest booking data to ensure everything is in sync
+      await fetchBooking();
 
       toast({
         title: "Success",
