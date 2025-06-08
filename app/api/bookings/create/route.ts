@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         editing_status: 'unassigned',
         created_at: new Date().toISOString()
       }])
-      .select()
+      .select('*, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code')
       .single()
 
     if (insertError) {

@@ -31,7 +31,7 @@ export async function POST(request: Request) {
         .from('bookings')
         .update(updateData)
         .eq('id', id)
-        .select('id, status, payment_status, editing_status, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link')
+        .select('id, status, payment_status, editing_status, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code')
         .single()
 
       if (error) {

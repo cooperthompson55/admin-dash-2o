@@ -22,6 +22,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
+// Import shared constants
+import { 
+  PACKAGES, 
+  SERVICE_CATALOG, 
+  getPropertySizeRange, 
+  formatPropertySizeDisplay,
+  getDiscountInfo,
+  applyDiscount,
+  calculateServicePricing
+} from "@/lib/constants"
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -37,98 +48,17 @@ interface PageAddress {
 
 type Service = { name: string; price: number };
 
-const SERVICE_CATALOG: Record<string, Service[]> = {
-  '0–999 sq ft': [
-    { name: 'HDR Photography', price: 189.99 },
-    { name: '360° Virtual Tour', price: 199.99 },
-    { name: 'Property Highlights Video', price: 289.99 },
-    { name: 'Slideshow Video Tour', price: 99.99 },
-    { name: 'Social Media Reel', price: 229.99 },
-    { name: 'Drone Aerial Photos', price: 159.99 },
-    { name: 'Drone Aerial Video', price: 159.99 },
-    { name: '2D Floor Plan', price: 119.99 },
-    { name: '3D House Model', price: 189.99 },
-    { name: 'Property Website', price: 129.99 },
-    { name: 'Custom Domain Name', price: 39.99 },
-    { name: 'Virtual Declutter', price: 29.99 },
-    { name: 'Virtual Staging', price: 39.99 },
-    { name: 'Virtual Twilight', price: 49.99 },
-  ],
-  '1000–1999 sq ft': [
-    { name: 'HDR Photography', price: 249.99 },
-    { name: '360° Virtual Tour', price: 239.99 },
-    { name: 'Property Highlights Video', price: 309.99 },
-    { name: 'Slideshow Video Tour', price: 99.99 },
-    { name: 'Social Media Reel', price: 249.99 },
-    { name: 'Drone Aerial Photos', price: 159.99 },
-    { name: 'Drone Aerial Video', price: 159.99 },
-    { name: '2D Floor Plan', price: 149.99 },
-    { name: '3D House Model', price: 229.99 },
-    { name: 'Property Website', price: 129.99 },
-    { name: 'Custom Domain Name', price: 39.99 },
-    { name: 'Virtual Declutter', price: 29.99 },
-    { name: 'Virtual Staging', price: 39.99 },
-    { name: 'Virtual Twilight', price: 49.99 },
-  ],
-  '2000–2999 sq ft': [
-    { name: 'HDR Photography', price: 319.99 },
-    { name: '360° Virtual Tour', price: 279.99 },
-    { name: 'Property Highlights Video', price: 349.99 },
-    { name: 'Slideshow Video Tour', price: 99.99 },
-    { name: 'Social Media Reel', price: 279.99 },
-    { name: 'Drone Aerial Photos', price: 159.99 },
-    { name: 'Drone Aerial Video', price: 159.99 },
-    { name: '2D Floor Plan', price: 189.99 },
-    { name: '3D House Model', price: 269.99 },
-    { name: 'Property Website', price: 129.99 },
-    { name: 'Custom Domain Name', price: 39.99 },
-    { name: 'Virtual Declutter', price: 29.99 },
-    { name: 'Virtual Staging', price: 39.99 },
-    { name: 'Virtual Twilight', price: 49.99 },
-  ],
-  '3000–3999 sq ft': [
-    { name: 'HDR Photography', price: 379.99 },
-    { name: '360° Virtual Tour', price: 319.99 },
-    { name: 'Property Highlights Video', price: 379.99 },
-    { name: 'Slideshow Video Tour', price: 99.99 },
-    { name: 'Social Media Reel', price: 299.99 },
-    { name: 'Drone Aerial Photos', price: 159.99 },
-    { name: 'Drone Aerial Video', price: 159.99 },
-    { name: '2D Floor Plan', price: 229.99 },
-    { name: '3D House Model', price: 299.99 },
-    { name: 'Property Website', price: 129.99 },
-    { name: 'Custom Domain Name', price: 39.99 },
-    { name: 'Virtual Declutter', price: 29.99 },
-    { name: 'Virtual Staging', price: 39.99 },
-    { name: 'Virtual Twilight', price: 49.99 },
-  ],
-  '4000–4999 sq ft': [
-    { name: 'HDR Photography', price: 439.99 },
-    { name: '360° Virtual Tour', price: 349.99 },
-    { name: 'Property Highlights Video', price: 409.99 },
-    { name: 'Slideshow Video Tour', price: 99.99 },
-    { name: 'Social Media Reel', price: 329.99 },
-    { name: 'Drone Aerial Photos', price: 159.99 },
-    { name: 'Drone Aerial Video', price: 159.99 },
-    { name: '2D Floor Plan', price: 269.99 },
-    { name: '3D House Model', price: 339.99 },
-    { name: 'Property Website', price: 129.99 },
-    { name: 'Custom Domain Name', price: 39.99 },
-    { name: 'Virtual Declutter', price: 29.99 },
-    { name: 'Virtual Staging', price: 39.99 },
-    { name: 'Virtual Twilight', price: 49.99 },
-  ],
-};
-
 // Property size and occupancy status options
 const PROPERTY_SIZE_OPTIONS = [
-  '0–999 sq ft',
-  '1000–1999 sq ft',
-  '2000–2999 sq ft',
-  '3000–3999 sq ft',
-  '4000–4999 sq ft',
+  'Under 1500 sq.ft.',
+  '1500-2499 sq.ft.',
+  '2500-3499 sq.ft.',
+  '3500-4499 sq.ft.',
+  '4500-5499 sq.ft.',
 ];
 const OCCUPANCY_STATUS_OPTIONS = ['Vacant', 'Occupied', 'Tenanted', 'Other'];
+const PROPERTY_TYPE_OPTIONS = ['Condo/Apartment', 'Townhouse', 'Detached House', 'Semi-Detached', 'Duplex', 'Other'];
+const AGENT_DESIGNATION_OPTIONS = ['Realtor', 'Sales Representative', 'Broker', 'Associate Broker', 'Agent', 'Other'];
 
 // Add this helper function near the top of the file
 function getShortLink(link: string, maxLength = 30) {
@@ -157,47 +87,6 @@ const TruncatedLink = ({ href, children, maxLength = 30 }: { href: string; child
     </Tooltip>
   </TooltipProvider>
 )
-
-// Add this helper function near the top of the file, after SERVICE_CATALOG
-const getDiscountInfo = (total: number) => {
-  if (total >= 1100) return { percent: 17, min: 1100, max: Infinity };
-  if (total >= 900) return { percent: 15, min: 900, max: 1099.99 };
-  if (total >= 700) return { percent: 12, min: 700, max: 899.99 };
-  if (total >= 500) return { percent: 10, min: 500, max: 699.99 };
-  if (total >= 350) return { percent: 5, min: 350, max: 499.99 };
-  if (total >= 199.99) return { percent: 3, min: 199.99, max: 349.99 };
-  return { percent: 0, min: 0, max: 199.98 };
-};
-
-const applyDiscount = (total: number) => {
-  const { percent } = getDiscountInfo(total);
-  return total * (1 - percent / 100);
-};
-
-// Updated getGoogleMapsLink function
-const getGoogleMapsLink = (addressInput: string | PageAddress | null | undefined): string => {
-  if (!addressInput) return '#';
-
-  let addressString: string;
-  if (typeof addressInput === 'string') {
-    addressString = addressInput;
-  } else if (typeof addressInput === 'object' && addressInput !== null) {
-    // Street is crucial for a meaningful map link from an object
-    if (!addressInput.street) return '#'; 
-    addressString = `${addressInput.street || ''}${addressInput.street2 ? `, ${addressInput.street2}` : ''}, ${addressInput.city || ''}, ${addressInput.province || ''} ${addressInput.zipCode || ''}`;
-  } else {
-    return '#'; // Not a string or a recognized object
-  }
-
-  // Basic cleanup for the address string
-  addressString = addressString.replace(/\s*,\s*/g, ", ").replace(/^,\s*|\s*,$/g, "").trim();
-  
-  if (!addressString || addressString === "," || /^\s*$/.test(addressString) || addressString.toLowerCase() === "address not available" || addressString.toLowerCase() === "address details incomplete") {
-      return "#";
-  }
-
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressString)}`;
-};
 
 // Add this function before the BookingDetailsPage component
 function composeMediaReadyEmail(booking: any) {
@@ -257,36 +146,29 @@ function extractSquareInvoiceId(url: string): string | null {
   return match ? match[1] : null
 }
 
-// Add this after SERVICE_CATALOG
-const PACKAGES: Record<string, Record<string, { price: number; includes: string[] }>> = {
-  'Essentials Package': {
-    '0–999 sq ft': { price: 229.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '1000–1999 sq ft': { price: 289.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '2000–2999 sq ft': { price: 349.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '3000–3999 sq ft': { price: 389.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '4000–4999 sq ft': { price: 449.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-  },
-  'Deluxe Tour Package': {
-    '0–999 sq ft': { price: 489.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '1000–1999 sq ft': { price: 579.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '2000–2999 sq ft': { price: 649.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '3000–3999 sq ft': { price: 719.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '4000–4999 sq ft': { price: 799.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-  },
-  'Marketing Pro Package': {
-    '0–999 sq ft': { price: 829.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '1000–1999 sq ft': { price: 959.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '2000–2999 sq ft': { price: 1079.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '3000–3999 sq ft': { price: 1179.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '4000–4999 sq ft': { price: 1299.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-  },
-  'Premium Seller Experience': {
-    '0–999 sq ft': { price: 1069.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '1000–1999 sq ft': { price: 1199.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '2000–2999 sq ft': { price: 1319.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '3000–3999 sq ft': { price: 1419.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '4000–4999 sq ft': { price: 1539.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-  },
+// Updated getGoogleMapsLink function
+const getGoogleMapsLink = (addressInput: string | PageAddress | null | undefined): string => {
+  if (!addressInput) return '#';
+
+  let addressString: string;
+  if (typeof addressInput === 'string') {
+    addressString = addressInput;
+  } else if (typeof addressInput === 'object' && addressInput !== null) {
+    // Street is crucial for a meaningful map link from an object
+    if (!addressInput.street) return '#'; 
+    addressString = `${addressInput.street || ''}${addressInput.street2 ? `, ${addressInput.street2}` : ''}, ${addressInput.city || ''}, ${addressInput.province || ''} ${addressInput.zipCode || ''}`;
+  } else {
+    return '#'; // Not a string or a recognized object
+  }
+
+  // Basic cleanup for the address string
+  addressString = addressString.replace(/\s*,\s*/g, ", ").replace(/^,\s*|\s*,$/g, "").trim();
+  
+  if (!addressString || addressString === "," || /^\s*$/.test(addressString) || addressString.toLowerCase() === "address not available" || addressString.toLowerCase() === "address details incomplete") {
+      return "#";
+  }
+
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(addressString)}`;
 };
 
 export default function BookingDetailsPage() {
@@ -307,12 +189,13 @@ export default function BookingDetailsPage() {
   const [creatingFolders, setCreatingFolders] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
   const [copiedEmail, setCopiedEmail] = useState(false)
+  const [copiedRef, setCopiedRef] = useState(false)
 
   const fetchBooking = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link")
+      .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
       .eq("id", bookingId)
       .single()
     if (error) setError("Failed to load booking.")
@@ -531,12 +414,12 @@ export default function BookingDetailsPage() {
 
   // Helper to get available services based on property_size
   function getAvailableServices(): Service[] {
-    // Try to match property_size exactly, fallback to first if not found
+    // Convert property size to range for service catalog lookup
     const size = form.property_size || booking?.property_size || '';
-    if (SERVICE_CATALOG[size]) return SERVICE_CATALOG[size];
-    // Try to match by substring (in case of formatting differences)
-    const found = Object.keys(SERVICE_CATALOG).find(key => size.includes(key.split(' ')[0]));
-    if (found) return SERVICE_CATALOG[found];
+    const sizeRange = getPropertySizeRange(size);
+    
+    if (SERVICE_CATALOG[sizeRange]) return SERVICE_CATALOG[sizeRange];
+    
     // Fallback to first
     return SERVICE_CATALOG[Object.keys(SERVICE_CATALOG)[0]];
   }
@@ -577,22 +460,114 @@ export default function BookingDetailsPage() {
   };
 
   // Helper to get address object from form or booking
-  function getAddressObj(addr: any) {
+  function getAddressObj(addr: any): PageAddress {
+    // If no address provided, return empty object
     if (!addr) return { street: '', street2: '', city: '', province: '', zipCode: '' };
-    if (typeof addr === 'object') return { street: '', street2: '', city: '', province: '', zipCode: '', ...addr };
-    try {
-      return { street: '', street2: '', city: '', province: '', zipCode: '', ...JSON.parse(addr) };
-    } catch {
-      return { street: '', street2: '', city: '', province: '', zipCode: '' };
+    
+    // If it's already a proper object with a street field, use it
+    if (typeof addr === 'object' && addr.street) {
+      return { street: '', street2: '', city: '', province: '', zipCode: '', ...addr };
     }
+    
+    // If it's a string, try to use it as the street address
+    if (typeof addr === 'string' && addr.trim() !== '') {
+      return {
+        street: addr.trim(),
+        street2: '',
+        city: '',
+        province: '',
+        zipCode: ''
+      };
+    }
+    
+    // If it's an object but not structured properly, try to parse as JSON
+    if (typeof addr === 'object') {
+      try {
+        return { street: '', street2: '', city: '', province: '', zipCode: '', ...addr };
+      } catch {
+        return { street: '', street2: '', city: '', province: '', zipCode: '' };
+      }
+    }
+    
+    // Try to parse as JSON string
+    try {
+      const parsed = JSON.parse(addr);
+      if (parsed && typeof parsed === 'object') {
+        return { street: '', street2: '', city: '', province: '', zipCode: '', ...parsed };
+      }
+    } catch {
+      // If JSON parsing fails and it's still a string, use as street
+      if (typeof addr === 'string') {
+        return {
+          street: addr.trim(),
+          street2: '',
+          city: '',
+          province: '',
+          zipCode: ''
+        };
+      }
+    }
+    
+    // Final fallback
+    return { street: '', street2: '', city: '', province: '', zipCode: '' };
   }
 
   const createProjectFolders = async () => {
     setCreatingFolders(true)
     try {
+      // Debug: Log what we have in form and booking addresses
+      console.log('Address debugging:', {
+        'form.address': form.address,
+        'booking.address': booking.address,
+        'form.address type': typeof form.address,
+        'booking.address type': typeof booking.address
+      });
+
+      // Process the address to ensure it has the correct structure
+      const processedAddress = getAddressObj(form.address);
+      console.log('Processed address from form:', processedAddress);
+      
+      // If form address doesn't have a street, try the booking address
+      let finalAddress = processedAddress;
+      if (!processedAddress.street || processedAddress.street.trim() === '') {
+        console.log('Form address has no street, trying booking address...');
+        const bookingProcessedAddress = getAddressObj(booking.address);
+        console.log('Processed address from booking:', bookingProcessedAddress);
+        
+        if (bookingProcessedAddress.street && bookingProcessedAddress.street.trim() !== '') {
+          finalAddress = bookingProcessedAddress;
+          console.log('Using booking address as final address');
+        } else {
+          // If both form and booking don't have structured address, check if there's a string address
+          const rawAddress = form.address || booking.address;
+          if (typeof rawAddress === 'string' && rawAddress.trim() !== '') {
+            console.log('Found string address, using as street:', rawAddress);
+            finalAddress = {
+              street: rawAddress.trim(),
+              street2: '',
+              city: '',
+              province: '',
+              zipCode: ''
+            };
+          }
+        }
+      }
+      
+      console.log('Final address to use:', finalAddress);
+      
+      // Validate that we have some form of address
+      if (!finalAddress.street || finalAddress.street.trim() === '') {
+        toast({
+          title: "Address Required",
+          description: "Please fill in the street address before creating project folders.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       console.log('Starting createProjectFolders with data:', {
         bookingId,
-        propertyAddress: form.address,
+        propertyAddress: finalAddress,
         agentName: form.agent_name,
       })
 
@@ -621,7 +596,7 @@ export default function BookingDetailsPage() {
         },
         body: JSON.stringify({
           bookingId,
-          propertyAddress: form.address,
+          propertyAddress: finalAddress,
           agentName: form.agent_name,
         }),
       })
@@ -748,6 +723,17 @@ export default function BookingDetailsPage() {
       await navigator.clipboard.writeText(text)
       setCopiedEmail(true)
       setTimeout(() => setCopiedEmail(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+    }
+  }
+
+  const copyReferenceUrl = async () => {
+    const url = `rephotos.ca/book-now/confirmation/${booking.reference_number}`
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopiedRef(true)
+      setTimeout(() => setCopiedRef(false), 2000)
     } catch (err) {
       console.error('Failed to copy text: ', err)
     }
@@ -888,6 +874,33 @@ export default function BookingDetailsPage() {
                 booking.agent_company || 'N/A'
               )}
             </div>
+            <div className="mb-2"><span className="text-xs text-gray-500 block">Designation</span>
+              {editing ? (
+                <select
+                  className="border rounded px-2 py-1 text-sm w-full"
+                  value={form.agent_designation || ''}
+                  onChange={e => handleChange('agent_designation', e.target.value)}
+                >
+                  <option value="">Select designation...</option>
+                  {AGENT_DESIGNATION_OPTIONS.map(designation => (
+                    <option key={designation} value={designation}>{designation}</option>
+                  ))}
+                </select>
+              ) : (
+                booking.agent_designation || 'N/A'
+              )}
+            </div>
+            <div className="mb-2"><span className="text-xs text-gray-500 block">Brokerage</span>
+              {editing ? (
+                <input
+                  className="border rounded px-2 py-1 text-sm w-full"
+                  value={form.agent_brokerage || ''}
+                  onChange={e => handleChange('agent_brokerage', e.target.value)}
+                />
+              ) : (
+                booking.agent_brokerage || 'N/A'
+              )}
+            </div>
           </div>
           {/* Property Information */}
           <div className="bg-white rounded-lg p-6 border">
@@ -977,21 +990,98 @@ export default function BookingDetailsPage() {
                 })()
               )}
             </div>
-            <div className="mb-2"><span className="text-xs text-gray-500 block">Property Size</span>
+            <div className="mb-2"><span className="text-xs text-gray-500 block">Suite/Unit #</span>
+              {editing ? (
+                <input
+                  className="border rounded px-2 py-1 text-sm w-full"
+                  value={form.suite_unit || ''}
+                  onChange={e => handleChange('suite_unit', e.target.value)}
+                  placeholder="e.g., Unit 205, Apt 3B"
+                />
+              ) : (
+                booking.suite_unit || 'N/A'
+              )}
+            </div>
+            <div className="mb-2"><span className="text-xs text-gray-500 block">Property Type</span>
               {editing ? (
                 <select
                   className="border rounded px-2 py-1 text-sm w-full"
-                  value={form.property_size || ''}
-                  onChange={e => handleChange('property_size', e.target.value)}
+                  value={form.property_type || ''}
+                  onChange={e => handleChange('property_type', e.target.value)}
                 >
-                  <option value="" disabled>Select property size...</option>
-                  {PROPERTY_SIZE_OPTIONS.map(size => (
-                    <option key={size} value={size}>{size}</option>
+                  <option value="">Select property type...</option>
+                  {PROPERTY_TYPE_OPTIONS.map(type => (
+                    <option key={type} value={type}>{type}</option>
                   ))}
                 </select>
               ) : (
-                booking.property_size
+                booking.property_type || 'N/A'
               )}
+            </div>
+            <div className="mb-2"><span className="text-xs text-gray-500 block">Property Size</span>
+              {editing ? (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="number"
+                    className="border rounded px-2 py-1 text-sm w-full"
+                    placeholder="Enter property size in sq ft"
+                    value={typeof form.property_size === 'string' && form.property_size.includes('–') 
+                      ? '' 
+                      : (form.property_size || '').toString().replace(/[^0-9]/g, '')}
+                    onChange={e => {
+                      const value = e.target.value;
+                      handleChange('property_size', value ? parseInt(value) : '');
+                    }}
+                  />
+                  <div className="text-xs text-gray-500">
+                    Range: {getPropertySizeRange(form.property_size || 0)}
+                  </div>
+                </div>
+              ) : (
+                formatPropertySizeDisplay(booking.property_size)
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <div><span className="text-xs text-gray-500 block">Bedrooms</span>
+                {editing ? (
+                  <input
+                    type="number"
+                    className="border rounded px-2 py-1 text-sm w-full"
+                    value={form.bedrooms || ''}
+                    onChange={e => handleChange('bedrooms', e.target.value ? parseInt(e.target.value) : null)}
+                    min="0"
+                  />
+                ) : (
+                  booking.bedrooms || 'N/A'
+                )}
+              </div>
+              <div><span className="text-xs text-gray-500 block">Bathrooms</span>
+                {editing ? (
+                  <input
+                    type="number"
+                    step="0.5"
+                    className="border rounded px-2 py-1 text-sm w-full"
+                    value={form.bathrooms || ''}
+                    onChange={e => handleChange('bathrooms', e.target.value ? parseFloat(e.target.value) : null)}
+                    min="0"
+                  />
+                ) : (
+                  booking.bathrooms || 'N/A'
+                )}
+              </div>
+              <div><span className="text-xs text-gray-500 block">Parking</span>
+                {editing ? (
+                  <input
+                    type="number"
+                    className="border rounded px-2 py-1 text-sm w-full"
+                    value={form.parking_spaces || ''}
+                    onChange={e => handleChange('parking_spaces', e.target.value ? parseInt(e.target.value) : null)}
+                    min="0"
+                  />
+                ) : (
+                  booking.parking_spaces || 'N/A'
+                )}
+              </div>
             </div>
             <div className="mb-2"><span className="text-xs text-gray-500 block">Occupancy Status</span>
               {editing ? (
@@ -1007,6 +1097,19 @@ export default function BookingDetailsPage() {
                 </select>
               ) : (
                 booking.property_status
+              )}
+            </div>
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 block">Access Instructions</span>
+              {editing ? (
+                <textarea
+                  className="border rounded px-2 py-1 text-sm w-full min-h-[60px]"
+                  value={form.access_instructions || ""}
+                  onChange={e => handleChange("access_instructions", e.target.value)}
+                  placeholder="How to access the property (lockbox, key location, etc.)"
+                />
+              ) : (
+                <span className="text-sm bg-gray-50 p-2 rounded block">{booking.access_instructions || "No access instructions"}</span>
               )}
             </div>
             <div className="mb-2">
@@ -1026,6 +1129,27 @@ export default function BookingDetailsPage() {
           {/* Booking Metadata */}
           <div className="bg-white rounded-lg p-6 border">
             <h2 className="text-lg font-semibold mb-4">Booking Metadata</h2>
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 block">Reference Number</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono bg-blue-50 p-2 rounded border flex-1">
+                  rephotos.ca/book-now/confirmation/{booking.reference_number}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0"
+                  onClick={copyReferenceUrl}
+                  title="Copy reference URL"
+                >
+                  {copiedRef ? (
+                    <CheckCheck className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
             <div className="mb-2">
               <span className="text-xs text-gray-500 block">Preferred Date</span>
               {editing ? (
@@ -1168,10 +1292,18 @@ export default function BookingDetailsPage() {
           {/* Services Booked */}
           <div className="bg-white rounded-lg p-6 border">
             <h2 className="text-lg font-semibold mb-4">Services Booked</h2>
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 block">Selected Package</span>
+              <span className="text-sm bg-blue-50 p-2 rounded block">{booking.selected_package_name || "No package selected"}</span>
+            </div>
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 block">Promotion Code</span>
+              <span className="text-sm bg-green-50 p-2 rounded block">{booking.promotion_code || "No promotion code"}</span>
+            </div>
             {(() => {
               // Detect all packages in the services array
               const packageNames = Object.keys(PACKAGES);
-              const propertySize = booking.property_size;
+              const propertySize = getPropertySizeRange(booking.property_size); // Convert to range for package lookup
               const servicesArr = Array.isArray(booking.services) ? booking.services : getServicesArray(booking.services);
               // Find all package services
               const packageServices = servicesArr.filter((s: any) => packageNames.includes(s.name));
@@ -1200,11 +1332,11 @@ export default function BookingDetailsPage() {
                         if (!pkgInfo) return null;
                         return (
                           <div key={pkg.name + idx} className="border-b pb-4 mb-4 last:border-b-0 last:pb-0 last:mb-0">
-                            <div className="font-bold text-blue-700 text-lg">{pkg.name} <span className="text-gray-500 font-normal">({propertySize})</span></div>
+                            <div className="font-bold text-blue-700 text-lg">{pkg.name} <span className="text-gray-500 font-normal">({formatPropertySizeDisplay(booking.property_size)})</span></div>
                             <div className="text-md font-semibold mb-1">Package Price: ${pkgInfo.price.toFixed(2)}</div>
                             <div className="text-sm text-gray-700 mb-2">Includes:</div>
                             <ul className="list-disc list-inside mb-2">
-                              {pkgInfo.includes.map((inc, i) => (
+                              {pkgInfo.includes.map((inc: string, i: number) => (
                                 <li key={i}>{inc}</li>
                               ))}
                             </ul>
@@ -1229,10 +1361,41 @@ export default function BookingDetailsPage() {
                   <div className="mt-4 font-bold">
                     Total: ${total.toFixed(2)}
                   </div>
+                  {booking.additional_instructions && (
+                    <div className="mt-4">
+                      <span className="text-xs text-gray-500 block">Additional Instructions</span>
+                      <span className="text-sm bg-yellow-50 p-2 rounded block">{booking.additional_instructions}</span>
+                    </div>
+                  )}
                 </>
               );
             })()}
           </div>
+        </div>
+
+        {/* Add new section for Feature Sheet Content */}
+        <div className="grid grid-cols-1 gap-6 mb-6">
+          <div className="bg-white rounded-lg p-6 border">
+            <h2 className="text-lg font-semibold mb-4">Feature Sheet Content</h2>
+            <div className="mb-2">
+              <span className="text-xs text-gray-500 block">Feature Sheet/Flyer Content</span>
+              {editing ? (
+                <textarea
+                  className="border rounded px-2 py-1 text-sm w-full min-h-[120px]"
+                  value={form.feature_sheet_content || ""}
+                  onChange={e => handleChange("feature_sheet_content", e.target.value)}
+                  placeholder="Enter content for feature sheet or property flyer..."
+                />
+              ) : (
+                <div className="text-sm bg-gray-50 p-4 rounded whitespace-pre-wrap">
+                  {booking.feature_sheet_content || "No feature sheet content provided"}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Media Files */}
           <div className="bg-white rounded-lg p-6 border w-full">
             <div className="flex justify-between items-center mb-4">
@@ -1470,230 +1633,230 @@ export default function BookingDetailsPage() {
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Management Links */}
-          <div className="bg-white rounded-lg p-6 border w-full">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <span>Management Links</span>
-            </h2>
-            <div className="space-y-6">
-              {/* Editor Link */}
-              <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
-                <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
-                  <span className="text-xl">✏️</span> Editor Link
-                </span>
-                <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
-                  {editing ? (
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input
-                      className="border rounded px-2 py-1 text-sm w-full md:w-auto"
-                      placeholder="Paste editor link..."
-                      value={form.editor_link || ''}
-                      onChange={e => handleChange('editor_link', e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                      />
-                      {form.editor_link && (
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          const newForm = { ...form };
+        {/* Management Links */}
+        <div className="bg-white rounded-lg p-6 border w-full">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <span>Management Links</span>
+          </h2>
+          <div className="space-y-6">
+            {/* Editor Link */}
+            <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
+              <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
+                <span className="text-xl">✏️</span> Editor Link
+              </span>
+              <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
+                {editing ? (
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                    className="border rounded px-2 py-1 text-sm w-full md:w-auto"
+                    placeholder="Paste editor link..."
+                    value={form.editor_link || ''}
+                    onChange={e => handleChange('editor_link', e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+                    />
+                    {form.editor_link && (
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        const newForm = { ...form };
+                        newForm.editor_link = '';
+                        setForm(newForm);
+                        handleSave();
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  form.editor_link ? (
+                    <div className="flex items-center gap-2">
+                    <TruncatedLink href={form.editor_link}>
+                        {getShortLink(form.editor_link)}
+                    </TruncatedLink>
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        let newForm;
+                        if (!editing) {
+                          setEditing(true);
+                          newForm = { ...form };
+                          newForm.editor_link = '';
+                          setForm(newForm);
+                        } else {
+                          newForm = { ...form };
                           newForm.editor_link = '';
                           setForm(newForm);
                           handleSave();
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                        }
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   ) : (
-                    form.editor_link ? (
-                      <div className="flex items-center gap-2">
-                      <TruncatedLink href={form.editor_link}>
-                          {getShortLink(form.editor_link)}
-                      </TruncatedLink>
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          let newForm;
-                          if (!editing) {
-                            setEditing(true);
-                            newForm = { ...form };
-                            newForm.editor_link = '';
-                            setForm(newForm);
-                          } else {
-                            newForm = { ...form };
-                            newForm.editor_link = '';
-                            setForm(newForm);
-                            handleSave();
-                          }
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span 
-                        className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
-                        onClick={() => {
-                          setEditing(true);
-                        }}
-                      >
-                        No link added yet
-                      </span>
-                    )
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full md:w-auto"
-                    variant="outline"
-                    onClick={() => window.open(form.editor_link || "https://app.pixlmob.com/maidanghung", '_blank')}
-                    disabled={false}
-                  >
-                    Open Editor
-                  </Button>
-                </div>
+                    <span 
+                      className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
+                      onClick={() => {
+                        setEditing(true);
+                      }}
+                    >
+                      No link added yet
+                    </span>
+                  )
+                )}
+                <Button
+                  size="sm"
+                  className="w-full md:w-auto"
+                  variant="outline"
+                  onClick={() => window.open(form.editor_link || "https://app.pixlmob.com/maidanghung", '_blank')}
+                  disabled={false}
+                >
+                  Open Editor
+                </Button>
               </div>
-              {/* Client Delivery Page */}
-              <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
-                <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
-                  <span className="text-xl">🌐</span> Final Media (Client Delivery)
-                </span>
-                <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
-                  {editing ? (
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input
-                      className="border rounded px-2 py-1 text-sm w-full md:w-auto"
-                      placeholder="Paste delivery page link..."
-                      value={form.delivery_page_link || ''}
-                      onChange={e => handleChange('delivery_page_link', e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                      />
-                      {form.delivery_page_link && (
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          const newForm = { ...form };
+            </div>
+            {/* Client Delivery Page */}
+            <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
+              <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
+                <span className="text-xl">🌐</span> Final Media (Client Delivery)
+              </span>
+              <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
+                {editing ? (
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                    className="border rounded px-2 py-1 text-sm w-full md:w-auto"
+                    placeholder="Paste delivery page link..."
+                    value={form.delivery_page_link || ''}
+                    onChange={e => handleChange('delivery_page_link', e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+                    />
+                    {form.delivery_page_link && (
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        const newForm = { ...form };
+                        newForm.delivery_page_link = '';
+                        setForm(newForm);
+                        handleSave();
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  form.delivery_page_link ? (
+                    <div className="flex items-center gap-2">
+                    <TruncatedLink href={form.delivery_page_link}>
+                        {getShortLink(form.delivery_page_link)}
+                    </TruncatedLink>
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        let newForm;
+                        if (!editing) {
+                          setEditing(true);
+                          newForm = { ...form };
+                          newForm.delivery_page_link = '';
+                          setForm(newForm);
+                        } else {
+                          newForm = { ...form };
                           newForm.delivery_page_link = '';
                           setForm(newForm);
                           handleSave();
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                        }
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   ) : (
-                    form.delivery_page_link ? (
-                      <div className="flex items-center gap-2">
-                      <TruncatedLink href={form.delivery_page_link}>
-                          {getShortLink(form.delivery_page_link)}
-                      </TruncatedLink>
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          let newForm;
-                          if (!editing) {
-                            setEditing(true);
-                            newForm = { ...form };
-                            newForm.delivery_page_link = '';
-                            setForm(newForm);
-                          } else {
-                            newForm = { ...form };
-                            newForm.delivery_page_link = '';
-                            setForm(newForm);
-                            handleSave();
-                          }
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span 
-                        className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
-                        onClick={() => {
-                          setEditing(true);
-                        }}
-                      >
-                        No link added yet
-                      </span>
-                    )
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full md:w-auto"
-                    variant="outline"
-                    onClick={() => form.delivery_page_link && window.open(form.delivery_page_link, '_blank')}
-                    disabled={!form.delivery_page_link}
-                  >
-                    Open Folder
-                  </Button>
-                </div>
+                    <span 
+                      className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
+                      onClick={() => {
+                        setEditing(true);
+                      }}
+                    >
+                      No link added yet
+                    </span>
+                  )
+                )}
+                <Button
+                  size="sm"
+                  className="w-full md:w-auto"
+                  variant="outline"
+                  onClick={() => form.delivery_page_link && window.open(form.delivery_page_link, '_blank')}
+                  disabled={!form.delivery_page_link}
+                >
+                  Open Folder
+                </Button>
               </div>
-              {/* Invoice Link */}
-              <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
-                <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
-                  <span className="text-xl">📄</span> Invoice Link
-                </span>
-                <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
-                  {editing ? (
-                    <div className="flex items-center gap-2 w-full md:w-auto">
-                    <input
-                      className="border rounded px-2 py-1 text-sm w-full md:w-auto"
-                      placeholder="Paste invoice link..."
-                      value={form.invoice_link || ''}
-                        onChange={e => {
-                          const link = e.target.value;
-                          handleChange('invoice_link', link);
-                          const invoiceId = extractSquareInvoiceId(link);
-                          if (invoiceId) handleChange('invoice_id', invoiceId);
-                        }}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
-                      />
-                      {form.invoice_link && (
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          const newForm = { ...form };
+            </div>
+            {/* Invoice Link */}
+            <div className="flex flex-col md:flex-row md:items-center md:gap-4 gap-2">
+              <span className="flex items-center gap-2 min-w-[160px] font-medium text-gray-700">
+                <span className="text-xl">📄</span> Invoice Link
+              </span>
+              <div className="flex-1 flex flex-col md:flex-row md:items-center gap-2">
+                {editing ? (
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                  <input
+                    className="border rounded px-2 py-1 text-sm w-full md:w-auto"
+                    placeholder="Paste invoice link..."
+                    value={form.invoice_link || ''}
+                      onChange={e => {
+                        const link = e.target.value;
+                        handleChange('invoice_link', link);
+                        const invoiceId = extractSquareInvoiceId(link);
+                        if (invoiceId) handleChange('invoice_id', invoiceId);
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSave(); }}
+                    />
+                    {form.invoice_link && (
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        const newForm = { ...form };
+                        newForm.invoice_link = '';
+                        setForm(newForm);
+                        handleSave();
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  form.invoice_link ? (
+                    <div className="flex items-center gap-2">
+                    <TruncatedLink href={form.invoice_link}>
+                        {getShortLink(form.invoice_link)}
+                    </TruncatedLink>
+                      <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
+                        let newForm;
+                        if (!editing) {
+                          setEditing(true);
+                          newForm = { ...form };
+                          newForm.invoice_link = '';
+                          setForm(newForm);
+                        } else {
+                          newForm = { ...form };
                           newForm.invoice_link = '';
                           setForm(newForm);
                           handleSave();
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
+                        }
+                      }}>
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   ) : (
-                    form.invoice_link ? (
-                      <div className="flex items-center gap-2">
-                      <TruncatedLink href={form.invoice_link}>
-                          {getShortLink(form.invoice_link)}
-                      </TruncatedLink>
-                        <Button size="icon" variant="ghost" className="text-red-500" onClick={() => {
-                          let newForm;
-                          if (!editing) {
-                            setEditing(true);
-                            newForm = { ...form };
-                            newForm.invoice_link = '';
-                            setForm(newForm);
-                          } else {
-                            newForm = { ...form };
-                            newForm.invoice_link = '';
-                            setForm(newForm);
-                            handleSave();
-                          }
-                        }}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <span 
-                        className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
-                        onClick={() => {
-                          setEditing(true);
-                        }}
-                      >
-                        No link added yet
-                      </span>
-                    )
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full md:w-auto"
-                    variant="outline"
-                    onClick={() => form.invoice_link && window.open(form.invoice_link, '_blank')}
-                    disabled={!form.invoice_link}
-                  >
-                    View Invoice
-                  </Button>
-                </div>
+                    <span 
+                      className="text-gray-400 italic cursor-pointer hover:text-gray-600" 
+                      onClick={() => {
+                        setEditing(true);
+                      }}
+                    >
+                      No link added yet
+                    </span>
+                  )
+                )}
+                <Button
+                  size="sm"
+                  className="w-full md:w-auto"
+                  variant="outline"
+                  onClick={() => form.invoice_link && window.open(form.invoice_link, '_blank')}
+                  disabled={!form.invoice_link}
+                >
+                  View Invoice
+                </Button>
               </div>
             </div>
           </div>

@@ -14,7 +14,7 @@ const readline = require('readline');
 
 // Sample booking data for testing
 const sampleBookingData = {
-  property_size: '1000–1999 sq ft',
+  property_size: '1500-2499 sq.ft.',
   services: [
     { name: 'HDR Photography', price: 249.99, count: 1, total: 249.99 }
   ],

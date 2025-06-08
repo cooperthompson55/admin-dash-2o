@@ -11,6 +11,13 @@ import { useToast } from "@/components/ui/use-toast"
 import { DaySchedule } from "@/components/day-schedule"
 import { MetricsPanel } from "@/components/dashboard/MetricsPanel"
 
+// Import shared constants
+import { 
+  getDiscountInfo,
+  applyDiscount,
+  formatPropertySizeDisplay
+} from "@/lib/constants"
+
 // Define the Booking type
 type Booking = {
   id: string
@@ -30,6 +37,19 @@ type Booking = {
   agent_email: string
   agent_phone: number
   agent_company: string
+  reference_number: string
+  selected_package_name: string | null
+  additional_instructions: string | null
+  property_type: string | null
+  bedrooms: number | null
+  bathrooms: number | null
+  parking_spaces: number | null
+  suite_unit: string | null
+  access_instructions: string | null
+  agent_designation: string | null
+  agent_brokerage: string | null
+  feature_sheet_content: string | null
+  promotion_code: string | null
 }
 
 // Create Supabase client
@@ -39,21 +59,6 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Polling interval in milliseconds (30 seconds for more frequent checks)
 const POLLING_INTERVAL = 30 * 1000
-
-// Add this helper near the top, after other helpers
-function getDiscountInfo(total: number) {
-  if (total >= 1100) return { percent: 17, min: 1100, max: Infinity };
-  if (total >= 900) return { percent: 15, min: 900, max: 1099.99 };
-  if (total >= 700) return { percent: 12, min: 700, max: 899.99 };
-  if (total >= 500) return { percent: 10, min: 500, max: 699.99 };
-  if (total >= 350) return { percent: 5, min: 350, max: 499.99 };
-  if (total >= 199.99) return { percent: 3, min: 199.99, max: 349.99 };
-  return { percent: 0, min: 0, max: 199.98 };
-}
-function applyDiscount(total: number) {
-  const { percent } = getDiscountInfo(total);
-  return total * (1 - percent / 100);
-}
 
 export default function AdminDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -121,7 +126,7 @@ export default function AdminDashboard() {
 
         const { data, error: supabaseError } = await supabase
           .from("bookings")
-          .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company")
+          .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
           .gte('created_at', thirtyDaysAgo.toISOString())
           .order("created_at", { ascending: false })
           .limit(100) // Limit to 100 bookings at a time

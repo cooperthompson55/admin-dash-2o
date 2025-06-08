@@ -21,18 +21,53 @@ interface Booking {
   agent_name: string
   address: string | Address
   status: string
-  property_size?: string
+  property_size?: string | number
   time?: string // Optionally, if you have a time field
+  reference_number: string
+  selected_package_name?: string | null
+  additional_instructions?: string | null
+  property_type?: string | null
+  bedrooms?: number | null
+  bathrooms?: number | null
+  parking_spaces?: number | null
+  suite_unit?: string | null
+  access_instructions?: string | null
+  agent_designation?: string | null
+  agent_brokerage?: string | null
+  feature_sheet_content?: string | null
+  promotion_code?: string | null
 }
 
 interface DayScheduleProps {
   bookings: Booking[]
 }
 
-function formatAddress(address: string | Address, propertySize?: string) {
+// Helper function to format property size for display
+function formatPropertySizeDisplay(size: string | number): string {
+  if (!size) return 'Not specified';
+  
+  // If it's already a range format, return it
+  if (typeof size === 'string' && size.includes('–')) {
+    return size;
+  }
+  
+  // If it's a number or numeric string, format it
+  let sizeNum: number;
+  if (typeof size === 'string') {
+    sizeNum = parseInt(size.replace(/[^0-9]/g, ''));
+  } else {
+    sizeNum = size;
+  }
+  
+  if (isNaN(sizeNum)) return 'Not specified';
+  
+  return `${sizeNum.toLocaleString()} sq ft`;
+}
+
+function formatAddress(address: string | Address, propertySize?: string | number) {
   if (typeof address === "string") return address
   const { street, street2, city, province, zipCode } = address
-  return `${street}${street2 ? `, ${street2}` : ""}, ${city}, ${province} ${zipCode}${propertySize ? ` (${propertySize})` : ""}`
+  return `${street}${street2 ? `, ${street2}` : ""}, ${city}, ${province} ${zipCode}${propertySize ? ` (${formatPropertySizeDisplay(propertySize)})` : ""}`
 }
 
 export const DaySchedule: React.FC<DayScheduleProps> = ({ bookings }) => {
