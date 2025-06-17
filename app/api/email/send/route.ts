@@ -1,15 +1,14 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Function to get Resend client
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) {
+    throw new Error('Missing RESEND_API_KEY environment variable')
+  }
+  return new Resend(process.env.RESEND_API_KEY)
+}
 
 export async function POST(request: Request) {
   // Set up response headers to ensure JSON response
@@ -33,6 +32,7 @@ export async function POST(request: Request) {
     console.log('Sending email to:', to)
     
     // Send the email using Resend
+    const resend = getResendClient()
     const { data, error } = await resend.emails.send({
       from: 'RePhotos <noreply@rephotos.ca>',
       to,
@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     // Update booking with delivery_email_sent = true if bookingId is provided
     if (bookingId) {
       console.log('Updating booking status:', bookingId)
+      const supabase = getSupabaseAdmin()
       const { error: updateError } = await supabase
         .from('bookings')
         .update({ delivery_email_sent: true })

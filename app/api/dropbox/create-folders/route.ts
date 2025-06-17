@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server'
 import { Dropbox } from 'dropbox'
 import fetch from 'node-fetch'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { cookies } from 'next/headers'
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 // Create Dropbox client with error handling
 async function createDropboxClient(request: Request) {
@@ -333,6 +327,7 @@ export async function POST(request: Request) {
     // Assuming Supabase columns are: raw_photos_link, final_edits_link (for editedMediaLink), delivery_page_link (for finalMediaLink)
     console.log('Updating Supabase with new links...')
     try {
+      const supabase = getSupabaseAdmin()
       const { error: updateError } = await supabase
         .from('bookings')
         .update({
