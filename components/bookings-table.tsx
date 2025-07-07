@@ -664,7 +664,7 @@ export function BookingsTable({
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>{formatCurrency(applyDiscount(booking.total_amount))}</TableCell>
+                    <TableCell>{formatCurrency(booking.total_amount)}</TableCell>
                     <TableCell>
                       <RelativeTime date={booking.created_at} />
                     </TableCell>

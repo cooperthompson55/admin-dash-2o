@@ -40,13 +40,9 @@ supabase projects list
 cd /path/to/your/project
 
 # Deploy the booking confirmation function
-# Replace YOUR_PROJECT_REF with your actual project reference
-supabase functions deploy booking-confirmation --project-ref YOUR_PROJECT_REF
+# Using the project reference: jshnsfvvsmjlxlbdpehf
+supabase functions deploy booking-confirmation --project-ref jshnsfvvsmjlxlbdpehf
 ```
-
-**Find your project reference:**
-- In your Supabase dashboard URL: `https://supabase.com/dashboard/project/YOUR_PROJECT_REF`
-- Or run: `supabase projects list`
 
 ### 3. Set Environment Variables
 
@@ -62,23 +58,23 @@ Apply the database migration to automatically trigger emails:
 
 ```bash
 # Apply the migration
-supabase db push --project-ref YOUR_PROJECT_REF
+supabase db push --project-ref jshnsfvvsmjlxlbdpehf
 
 # Or run the SQL directly in your Supabase dashboard
 ```
 
-**Important:** Update the SQL migration file with your actual project reference:
-- Edit `supabase/migrations/20241201_booking_confirmation_trigger.sql`
-- Replace `YOUR_PROJECT_REF` with your actual project reference
-- Replace `your_anon_key_here` with your Supabase anon key
+**Important:** Set the anon key in your database:
+```sql
+ALTER DATABASE postgres SET app.supabase_anon_key = 'your_actual_anon_key_here';
+```
 
 ### 5. Configure Your Application
 
 Update your environment variables in `.env.local`:
 
 ```env
-# Your existing Supabase variables
-NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+# Your Supabase configuration
+NEXT_PUBLIC_SUPABASE_URL=https://jshnsfvvsmjlxlbdpehf.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
@@ -90,7 +86,7 @@ RESEND_API_KEY=your_resend_api_key
 
 ### Method 1: Using the API Endpoint
 
-Create bookings through the new API endpoint:
+Create bookings through the API endpoint:
 
 ```javascript
 // POST /api/bookings/create
@@ -133,7 +129,7 @@ Call the edge function directly:
 
 ```javascript
 const response = await fetch(
-  'https://YOUR_PROJECT_REF.supabase.co/functions/v1/booking-confirmation',
+  'https://jshnsfvvsmjlxlbdpehf.supabase.co/functions/v1/booking-confirmation',
   {
     method: 'POST',
     headers: {
@@ -149,17 +145,24 @@ const response = await fetch(
 
 ## Testing
 
+### Quick Test Using the Test Script
+
+```bash
+# Run the test script with your anon key
+node scripts/test-booking-confirmation.js your_anon_key_here
+```
+
 ### Test the Edge Function
 
 1. **Test endpoint (GET request):**
    ```
-   https://YOUR_PROJECT_REF.supabase.co/functions/v1/booking-confirmation/test
+   https://jshnsfvvsmjlxlbdpehf.supabase.co/functions/v1/booking-confirmation/test
    ```
 
 2. **Test with booking data (POST request):**
    ```bash
    curl -X POST \
-     'https://YOUR_PROJECT_REF.supabase.co/functions/v1/booking-confirmation' \
+     'https://jshnsfvvsmjlxlbdpehf.supabase.co/functions/v1/booking-confirmation' \
      -H 'Authorization: Bearer YOUR_ANON_KEY' \
      -H 'Content-Type: application/json' \
      -d '{
@@ -199,9 +202,46 @@ curl -X POST \
     "agent_name": "Test User",
     "agent_email": "test@example.com",
     "agent_phone": "416-555-0123",
-    "agent_company": "Test Realty"
+    "agent_company": "Test Realty",
+    "notes": "This is a test booking"
   }'
 ```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Environment Variables Not Set**
+   - Check that `RESEND_API_KEY` is set in Supabase Edge Functions settings
+   - Verify `.env.local` has correct Supabase URL and keys
+
+2. **Edge Function Not Deployed**
+   ```bash
+   supabase functions deploy booking-confirmation --project-ref jshnsfvvsmjlxlbdpehf
+   ```
+
+3. **Database Trigger Not Working**
+   - Ensure `pg_net` extension is enabled
+   - Set the anon key in database configuration
+   - Check function permissions
+
+4. **Email Not Sending**
+   - Verify Resend API key is correct
+   - Check Supabase function logs
+   - Test edge function directly
+
+### Logs and Debugging
+
+- **Supabase Function Logs:** Check in your Supabase dashboard under Edge Functions
+- **Application Logs:** Check browser console and server logs
+- **Email Logs:** Check Resend dashboard for delivery status
+
+## Next Steps
+
+1. Test the email functionality using the test script
+2. Verify emails are being delivered to the correct addresses
+3. Monitor logs for any errors or issues
+4. Consider setting up email templates for better formatting
 
 ## Email Template
 
@@ -214,43 +254,6 @@ The confirmation email includes:
 - 📝 **Additional notes** (if provided)
 - 👤 **Agent information**
 - 📞 **Next steps and contact information**
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Edge Function not deploying:**
-   - Check if you're logged into Supabase CLI
-   - Verify your project reference is correct
-   - Ensure you have the necessary permissions
-
-2. **Emails not sending:**
-   - Verify RESEND_API_KEY is set in Supabase Edge Functions settings
-   - Check the edge function logs in Supabase dashboard
-   - Verify the Resend API key is valid
-
-3. **Database trigger not working:**
-   - Check if pg_net extension is enabled
-   - Verify the trigger function exists: `SELECT * FROM pg_proc WHERE proname = 'send_booking_confirmation';`
-   - Check database logs for errors
-
-4. **API endpoint errors:**
-   - Verify environment variables in `.env.local`
-   - Check the booking data structure matches requirements
-   - Review server logs for detailed error messages
-
-### Viewing Logs
-
-1. **Edge Function logs:**
-   - Go to Supabase Dashboard > Edge Functions > booking-confirmation > Logs
-
-2. **Database trigger logs:**
-   - Go to Supabase Dashboard > Logs > Database
-   - Filter for logs related to booking confirmations
-
-3. **API endpoint logs:**
-   - Check your Next.js application logs
-   - Use browser developer tools for client-side debugging
 
 ## Support
 

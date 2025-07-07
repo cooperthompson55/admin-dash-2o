@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { Dropbox } from 'dropbox'
 import fetch from 'node-fetch'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { cookies } from 'next/headers'
 
 // Create Dropbox client with error handling
@@ -152,13 +151,38 @@ async function createFolderIfNotExists(dbx: Dropbox, path: string) {
     console.log(`Successfully created folder: ${path}`)
     return true
   } catch (error: any) {
-    if (error?.status === 409) {
+    // Enhanced error handling for 409 status (folder already exists)
+    const status = error?.status || error?.response?.status || error?.statusCode
+    const is409 = status === 409 || status === '409'
+    
+    // Also check error message patterns that indicate folder already exists
+    const errorMessage = error?.message || error?.error?.message || ''
+    const folderExistsMessages = [
+      'already exists',
+      'conflict', 
+      'path/conflict',
+      'folder_already_exists'
+    ]
+    const messageIndicatesExists = folderExistsMessages.some(msg => 
+      errorMessage.toLowerCase().includes(msg.toLowerCase())
+    )
+    
+    console.log(`Error details for ${path}:`, {
+      status,
+      is409,
+      messageIndicatesExists,
+      errorMessage,
+      fullError: error
+    })
+    
+    if (is409 || messageIndicatesExists) {
       console.log(`Folder already exists: ${path}`)
       return true
     }
+    
     console.error(`Error creating folder ${path}:`, {
-      status: error?.status,
-      message: error?.message,
+      status,
+      message: errorMessage,
       error: error
     })
     throw error
@@ -323,34 +347,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Update Supabase with the new links
-    // Assuming Supabase columns are: raw_photos_link, final_edits_link (for editedMediaLink), delivery_page_link (for finalMediaLink)
-    console.log('Updating Supabase with new links...')
-    try {
-      const supabase = getSupabaseAdmin()
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({
-          raw_photos_link: rawPhotosLink,
-          final_edits_link: editedMediaLink,      // Mapping Edited Media link to final_edits_link
-          delivery_page_link: finalMediaLink,    // Mapping Final Media link to delivery_page_link
-        })
-        .eq('id', bookingId)
-
-      if (updateError) {
-        console.error('Error updating Supabase:', updateError)
-        return NextResponse.json(
-          { error: 'Failed to update booking with Dropbox links' },
-          { status: 500, headers }
-        )
-      }
-    } catch (supabaseError: any) {
-      console.error('Error updating Supabase:', supabaseError)
-      return NextResponse.json(
-        { error: 'Failed to update booking with Dropbox links', details: supabaseError.message },
-        { status: 500, headers }
-      )
-    }
+    // Note: Database update is handled by the client-side code after receiving the links
+    console.log('Dropbox folders created successfully, returning links to client for database update...')
 
     console.log('Successfully created folders and updated booking')
     return NextResponse.json({

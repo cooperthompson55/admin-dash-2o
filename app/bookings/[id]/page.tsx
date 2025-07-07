@@ -729,7 +729,7 @@ export default function BookingDetailsPage() {
   }
 
   const copyReferenceUrl = async () => {
-    const url = `rephotos.ca/book-now/confirmation/${booking.reference_number}`
+    const url = `rephotosteam.com/book-now/confirmation/${booking.reference_number}`
     try {
       await navigator.clipboard.writeText(url)
       setCopiedRef(true)
@@ -1020,23 +1020,16 @@ export default function BookingDetailsPage() {
             </div>
             <div className="mb-2"><span className="text-xs text-gray-500 block">Property Size</span>
               {editing ? (
-                <div className="flex flex-col gap-2">
-                  <input
-                    type="number"
-                    className="border rounded px-2 py-1 text-sm w-full"
-                    placeholder="Enter property size in sq ft"
-                    value={typeof form.property_size === 'string' && form.property_size.includes('–') 
-                      ? '' 
-                      : (form.property_size || '').toString().replace(/[^0-9]/g, '')}
-                    onChange={e => {
-                      const value = e.target.value;
-                      handleChange('property_size', value ? parseInt(value) : '');
-                    }}
-                  />
-                  <div className="text-xs text-gray-500">
-                    Range: {getPropertySizeRange(form.property_size || 0)}
-                  </div>
-                </div>
+                <select
+                  className="border rounded px-2 py-1 text-sm w-full"
+                  value={getPropertySizeRange(form.property_size || '')}
+                  onChange={e => handleChange('property_size', e.target.value)}
+                >
+                  <option value="">Select property size...</option>
+                  {PROPERTY_SIZE_OPTIONS.map(size => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
               ) : (
                 formatPropertySizeDisplay(booking.property_size)
               )}
@@ -1133,7 +1126,7 @@ export default function BookingDetailsPage() {
               <span className="text-xs text-gray-500 block">Reference Number</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono bg-blue-50 p-2 rounded border flex-1">
-                  rephotos.ca/book-now/confirmation/{booking.reference_number}
+                  rephotosteam.com/book-now/confirmation/{booking.reference_number}
                 </span>
                 <Button
                   variant="outline"

@@ -174,6 +174,12 @@ export function formatPropertySizeDisplay(size: string | number): string {
   
   if (isNaN(sizeNum)) return 'Not specified';
   
+  // For properties under 1500 sq ft, just show "Under 1500 sq.ft."
+  if (sizeNum < 1500) {
+    return 'Under 1500 sq.ft.';
+  }
+  
+  // For other sizes, show the specific size and range
   return `${sizeNum.toLocaleString()} sq ft (${getPropertySizeRange(sizeNum)})`;
 }
 

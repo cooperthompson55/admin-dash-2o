@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@supabase/supabase-js'
+
+// Create Supabase client for this API route
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(request: Request) {
   try {
@@ -27,7 +33,7 @@ export async function POST(request: Request) {
       // Log the update data for debugging
       console.log('Updating booking:', id, 'with data:', updateData)
       
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await supabase
         .from('bookings')
         .update(updateData)
         .eq('id', id)

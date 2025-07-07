@@ -7,10 +7,13 @@
  * to ensure booking confirmation emails are working correctly.
  * 
  * Usage:
- * node scripts/test-booking-confirmation.js [PROJECT_REF] [ANON_KEY]
+ * node scripts/test-booking-confirmation.js [ANON_KEY]
  */
 
 const readline = require('readline');
+
+// Use the correct project reference
+const PROJECT_REF = 'jshnsfvvsmjlxlbdpehf';
 
 // Sample booking data for testing
 const sampleBookingData = {
@@ -29,7 +32,7 @@ const sampleBookingData = {
   time: '10:00:00',
   property_status: 'Vacant',
   agent_name: 'Test User',
-  agent_email: 'test@example.com',
+  agent_email: 'cooper@rephotos.ca', // Changed to your email for testing
   agent_phone: '416-555-0123',
   agent_company: 'Test Realty',
   notes: 'This is a test booking - please ignore'
@@ -47,13 +50,13 @@ function askQuestion(question) {
   });
 }
 
-async function testEdgeFunction(projectRef, anonKey) {
+async function testEdgeFunction(anonKey) {
   console.log('\n🧪 Testing Edge Function...\n');
 
   // Test the GET endpoint first
   console.log('1. Testing GET /test endpoint...');
   try {
-    const testUrl = `https://${projectRef}.supabase.co/functions/v1/booking-confirmation/test`;
+    const testUrl = `https://${PROJECT_REF}.supabase.co/functions/v1/booking-confirmation/test`;
     console.log(`   URL: ${testUrl}`);
     
     const response = await fetch(testUrl);
@@ -72,7 +75,7 @@ async function testEdgeFunction(projectRef, anonKey) {
   // Test the POST endpoint with booking data
   console.log('\n2. Testing POST endpoint with booking data...');
   try {
-    const postUrl = `https://${projectRef}.supabase.co/functions/v1/booking-confirmation`;
+    const postUrl = `https://${PROJECT_REF}.supabase.co/functions/v1/booking-confirmation`;
     console.log(`   URL: ${postUrl}`);
     
     const response = await fetch(postUrl, {
@@ -92,6 +95,7 @@ async function testEdgeFunction(projectRef, anonKey) {
       console.log('   ✅ POST test successful');
       console.log('   📧 Confirmation email should be sent to:', sampleBookingData.agent_email);
       console.log('   📧 Copy should be sent to: cooper@rephotos.ca');
+      console.log('   📄 Response:', JSON.stringify(result, null, 2));
     } else {
       console.log(`   ❌ POST test failed: ${response.status}`);
       console.log(`   Error: ${JSON.stringify(result, null, 2)}`);
@@ -124,6 +128,7 @@ async function testApiEndpoint() {
       console.log('   ✅ API endpoint test successful');
       console.log('   📝 Booking created with ID:', result.booking?.id);
       console.log('   📧 Confirmation email should be triggered automatically');
+      console.log('   📄 Response:', JSON.stringify(result, null, 2));
     } else {
       console.log(`   ❌ API endpoint test failed: ${response.status}`);
       console.log(`   Error: ${JSON.stringify(result, null, 2)}`);
@@ -135,25 +140,21 @@ async function testApiEndpoint() {
 }
 
 async function main() {
-  console.log('🧪 Booking Confirmation Email Test Suite\n');
+  console.log('🧪 Booking Confirmation Email Test Suite');
+  console.log(`📋 Project Reference: ${PROJECT_REF}\n`);
 
-  // Get command line arguments or ask for input
-  let projectRef = process.argv[2];
-  let anonKey = process.argv[3];
-
-  if (!projectRef) {
-    console.log('To test the edge function, we need your Supabase project details.\n');
-    projectRef = await askQuestion('Enter your Supabase Project Reference (found in dashboard URL): ');
-  }
+  // Get command line argument or ask for input
+  let anonKey = process.argv[2];
 
   if (!anonKey) {
+    console.log('To test the edge function, we need your Supabase anon key.\n');
     anonKey = await askQuestion('Enter your Supabase Anon Key: ');
   }
 
-  if (projectRef && anonKey) {
-    await testEdgeFunction(projectRef, anonKey);
+  if (anonKey) {
+    await testEdgeFunction(anonKey);
   } else {
-    console.log('\n⏭️  Skipping edge function test (missing project details)');
+    console.log('\n⏭️  Skipping edge function test (missing anon key)');
   }
 
   // Test the API endpoint
@@ -170,6 +171,7 @@ async function main() {
   console.log('   - Check edge function logs in Supabase dashboard');
   console.log('   - Ensure your project reference and anon key are correct');
   console.log('   - Verify the booking confirmation function is deployed');
+  console.log('   - Check that .env.local has the correct Supabase URL and keys');
 
   rl.close();
 }

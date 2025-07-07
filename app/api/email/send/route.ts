@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { Resend } from 'resend'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@supabase/supabase-js'
+
+// Create Supabase client for this API route
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 // Function to get Resend client
 function getResendClient() {
@@ -34,7 +40,7 @@ export async function POST(request: Request) {
     // Send the email using Resend
     const resend = getResendClient()
     const { data, error } = await resend.emails.send({
-      from: 'RePhotos <noreply@rephotos.ca>',
+      from: 'RePhotos <noreply@rephotosteam.com>',
       to,
       subject,
       html,
@@ -53,14 +59,20 @@ export async function POST(request: Request) {
     // Update booking with delivery_email_sent = true if bookingId is provided
     if (bookingId) {
       console.log('Updating booking status:', bookingId)
-      const supabase = getSupabaseAdmin()
-      const { error: updateError } = await supabase
-        .from('bookings')
-        .update({ delivery_email_sent: true })
-        .eq('id', bookingId)
+      try {
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ delivery_email_sent: true })
+          .eq('id', bookingId)
 
-      if (updateError) {
-        console.error('Error updating booking:', updateError)
+        if (updateError) {
+          console.error('Error updating booking:', updateError)
+        } else {
+          console.log('Successfully updated booking status')
+        }
+      } catch (updateError: any) {
+        console.warn('Could not update booking status:', updateError.message)
+        // Email was sent successfully, so we don't fail the request
       }
     }
 

@@ -266,7 +266,7 @@ export default function AdminDashboard() {
   const completedThisWeek = bookings.filter(b => b.status === 'completed' && new Date(b.preferred_date) >= startOfWeek && new Date(b.preferred_date) < endOfWeek).length;
   const revenueThisWeek = bookings
     .filter(b => b.status === 'completed' && b.payment_status === 'paid' && new Date(b.preferred_date) >= startOfWeek && new Date(b.preferred_date) < endOfWeek)
-    .reduce((sum, b) => sum + applyDiscount(b.total_amount || 0), 0)
+    .reduce((sum, b) => sum + (b.total_amount || 0), 0)
     .toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
   return (

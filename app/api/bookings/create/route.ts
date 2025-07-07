@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { createClient } from '@supabase/supabase-js'
+
+// Create Supabase client for this API route
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 export async function POST(request: Request) {
   try {
@@ -19,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     // Insert the booking into Supabase
-    const { data: newBooking, error: insertError } = await supabaseAdmin
+    const { data: newBooking, error: insertError } = await supabase
       .from('bookings')
       .insert([{
         ...bookingData,
@@ -45,8 +51,14 @@ export async function POST(request: Request) {
     try {
       console.log('Calling edge function for email confirmation...')
       
-      const edgeFunctionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/booking-confirmation`
+      // Use the correct project reference for the edge function URL
+      const edgeFunctionUrl = `https://jshnsfvvsmjlxlbdpehf.supabase.co/functions/v1/booking-confirmation`
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      
+      if (!supabaseAnonKey) {
+        console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY is not configured')
+        throw new Error('Missing Supabase anon key configuration')
+      }
       
       const emailResponse = await fetch(edgeFunctionUrl, {
         method: 'POST',
@@ -59,7 +71,11 @@ export async function POST(request: Request) {
 
       if (!emailResponse.ok) {
         const emailError = await emailResponse.text()
-        console.error('Failed to send confirmation email:', emailError)
+        console.error('Failed to send confirmation email:', {
+          status: emailResponse.status,
+          statusText: emailResponse.statusText,
+          error: emailError
+        })
         // Don't fail the booking creation if email fails
         console.warn('Booking created but confirmation email failed to send')
       } else {

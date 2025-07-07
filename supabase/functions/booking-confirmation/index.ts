@@ -10,16 +10,16 @@ const corsHeaders = {
   "Access-Control-Max-Age": "86400"
 };
 
-// Email configuration
+// Email configuration - using verified domain rephotosteam.com for sending only
 const EMAIL_CONFIG = {
-  from: "RePhotos.ca <cooper@rephotos.ca>",
-  replyTo: "cooper@rephotos.ca",
+  from: "RePhotos <noreply@rephotosteam.com>", // Using verified domain for sending
+  replyTo: "cooper@rephotos.ca", // Keep original email
   companyName: "Rephotos",
   phone: "905-299-9300"
 };
 
 // Add version logging
-console.log("Booking Confirmation Function version: 1.3.0");
+console.log("Booking Confirmation Function version: 1.4.0");
 console.log("Function started at:", new Date().toISOString());
 
 // Check if API key exists and log its presence (but not the actual key)
@@ -341,7 +341,7 @@ serve(async (req: Request) => {
       try {
         console.log(`[${requestId}] Testing email sending via GET request...`);
         const testResponse = await sendEmail(
-          ["cooper@rephotos.ca"],
+          ["cooper@rephotosteam.com"],
           "Test Email from Booking Confirmation Edge Function",
           `This is a test email to verify the booking confirmation function is working.\n\nFrom: ${EMAIL_CONFIG.from}\nReply-To: ${EMAIL_CONFIG.replyTo}\nCompany: ${EMAIL_CONFIG.companyName}`
         );
@@ -552,7 +552,7 @@ ${EMAIL_CONFIG.companyName.toLowerCase()}.ca`.trim();
     try {
       console.log(`[${requestId}] Sending booking confirmation email...`);
       const emailResponse = await sendEmail(
-        [agent_email, "cooper@rephotos.ca"],
+        [agent_email, "cooper@rephotosteam.com"],
         "📸 Booking Confirmation – RePhotos",
         emailBody
       );

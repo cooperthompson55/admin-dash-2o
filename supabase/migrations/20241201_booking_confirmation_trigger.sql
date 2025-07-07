@@ -11,9 +11,8 @@ DECLARE
 BEGIN
   -- Only proceed if this is an INSERT operation on a new booking
   IF TG_OP = 'INSERT' THEN
-    -- Construct the edge function URL
-    -- Replace 'YOUR_PROJECT_REF' with your actual Supabase project reference
-    function_url := 'https://YOUR_PROJECT_REF.supabase.co/functions/v1/booking-confirmation';
+    -- Construct the edge function URL with the correct project reference
+    function_url := 'https://jshnsfvvsmjlxlbdpehf.supabase.co/functions/v1/booking-confirmation';
     
     -- Prepare the payload for the edge function
     payload := jsonb_build_object(
@@ -67,8 +66,8 @@ CREATE TRIGGER booking_confirmation_trigger
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Set up a custom configuration parameter to store the anon key
--- This should be set in your Supabase project settings
--- ALTER DATABASE postgres SET app.supabase_anon_key = 'your_anon_key_here';
+-- This should be set in your Supabase project settings or run this command:
+-- ALTER DATABASE postgres SET app.supabase_anon_key = 'your_actual_anon_key_here';
 
 COMMENT ON FUNCTION send_booking_confirmation() IS 'Automatically sends booking confirmation emails via edge function when new bookings are inserted';
 COMMENT ON TRIGGER booking_confirmation_trigger ON bookings IS 'Triggers booking confirmation email sending for new bookings'; 

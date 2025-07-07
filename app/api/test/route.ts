@@ -7,7 +7,8 @@ export async function GET() {
       hasDropboxToken: !!process.env.DROPBOX_ACCESS_TOKEN,
       hasAppUrl: !!process.env.NEXT_PUBLIC_APP_URL,
       hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      hasSupabaseKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      hasSupabaseServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
     }
   })
 } 
