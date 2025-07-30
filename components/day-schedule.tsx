@@ -22,7 +22,7 @@ interface Booking {
   address: string | Address
   status: string
   property_size?: string | number
-  time?: string // Optionally, if you have a time field
+  time: string | null // Match the type from app/page.tsx
   reference_number: string
   selected_package_name?: string | null
   additional_instructions?: string | null

@@ -8,11 +8,11 @@ The booking confirmation emails are not being sent due to configuration issues.
 ### 1. Fix Environment Variable (IMMEDIATE)
 **In your `.env.local` file, change:**
 ```
-SEND_API_KEY=re_BwJ3QmLU_3ZQiQgugoU3xMWTvQ6NSmfAE
+SEND_API_KEY=[YOUR_RESEND_API_KEY]
 ```
 **To:**
 ```
-RESEND_API_KEY=re_BwJ3QmLU_3ZQiQgugoU3xMWTvQ6NSmfAE
+RESEND_API_KEY=[YOUR_RESEND_API_KEY]
 ```
 
 ### 2. Domain Verification (IMMEDIATE)
@@ -33,7 +33,7 @@ supabase functions deploy booking-confirmation --project-ref jshnsfvvsmjlxlbdpeh
 1. Go to https://supabase.com/dashboard/project/jshnsfvvsmjlxlbdpehf/settings/edge-functions
 2. Add environment variable:
    - Key: `RESEND_API_KEY`
-   - Value: `re_BwJ3QmLU_3ZQiQgugoU3xMWTvQ6NSmfAE`
+   - Value: `[YOUR_RESEND_API_KEY]`
 
 ## 🧪 Test After Fixes:
 

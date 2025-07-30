@@ -25,16 +25,26 @@ import {
 // Import shared constants
 import { 
   PACKAGES, 
-  SERVICE_CATALOG, 
+  SERVICE_CATALOG,
   getPropertySizeRange, 
   formatPropertySizeDisplay,
-  getDiscountInfo,
-  applyDiscount,
-  calculateServicePricing
+  calculateServicePricing,
+  calculateBookingPricing,
+  normalizePropertySize,
+  validateBookingData
 } from "@/lib/constants"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase configuration:', {
+    url: supabaseUrl ? 'SET' : 'MISSING',
+    key: supabaseAnonKey ? 'SET' : 'MISSING'
+  })
+  throw new Error('Supabase configuration is missing. Please check your environment variables.')
+}
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Define an interface for address objects used in this page
@@ -51,10 +61,10 @@ type Service = { name: string; price: number };
 // Property size and occupancy status options
 const PROPERTY_SIZE_OPTIONS = [
   'Under 1500 sq.ft.',
-  '1500-2499 sq.ft.',
-  '2500-3499 sq.ft.',
-  '3500-4499 sq.ft.',
-  '4500-5499 sq.ft.',
+  '1500-2500 sq.ft.',
+  '2500-3500 sq.ft.',
+  '3500-4500 sq.ft.',
+  '4500-5500 sq.ft.',
 ];
 const OCCUPANCY_STATUS_OPTIONS = ['Vacant', 'Occupied', 'Tenanted', 'Other'];
 const PROPERTY_TYPE_OPTIONS = ['Condo/Apartment', 'Townhouse', 'Detached House', 'Semi-Detached', 'Duplex', 'Other'];
@@ -195,12 +205,31 @@ export default function BookingDetailsPage() {
     setLoading(true)
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
+      .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, time, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
       .eq("id", bookingId)
       .single()
-    if (error) setError("Failed to load booking.")
-    setBooking(data)
-    setForm(data)
+    if (error) {
+      setError("Failed to load booking.")
+      setLoading(false)
+      return
+    }
+    
+    // Normalize the booking data before setting it
+    const normalizedBooking = {
+      ...data,
+      property_size: normalizePropertySize(data.property_size)
+    }
+    
+    // Debug log to check if time field is being loaded
+    console.log('Booking data loaded:', {
+      id: data.id,
+      time: data.time,
+      timeType: typeof data.time,
+      fullData: data
+    })
+    
+    setBooking(normalizedBooking)
+    setForm(normalizedBooking)
     setLoading(false)
   }
 
@@ -208,37 +237,71 @@ export default function BookingDetailsPage() {
     if (bookingId) fetchBooking()
   }, [bookingId])
 
-  useEffect(() => {
-    if (!editing || !form) return;
-    const size = form.property_size;
-    if (!size) return;
-    const catalog = getAvailableServices();
-    const current = getServicesArray(form.services);
-    let updated = false;
-    const newServices = current.map((s: Service & { count?: number }) => {
-      const match = catalog.find((cat: Service) => cat.name === s.name);
-      if (match && s.price !== match.price) {
-        updated = true;
-        return { ...s, price: match.price };
-      }
-      return s;
-    });
-    if (updated) {
-      handleChange("services", newServices);
-      handleChange("total_amount", recalcTotal(newServices));
-    }
-    // eslint-disable-next-line
-  }, [form?.property_size, editing]);
+  // Removed automatic price updates - prices will only be updated when explicitly requested by user
 
   const handleChange = (field: string, value: any) => {
     console.log(`Changing ${field} to:`, value)
     setForm((prev: any) => ({ ...prev, [field]: value }))
   }
 
+  // Function to manually recalculate pricing when user requests it
+  const handleRecalculatePricing = () => {
+    if (!form.property_size || !form.services) return;
+
+    const servicesArray = getServicesArray(form.services);
+    const pricingResult = calculateBookingPricing(servicesArray, form.property_size);
+    
+    if (pricingResult.errors.length > 0) {
+      setError(`Pricing calculation errors: ${pricingResult.errors.join(', ')}`);
+      return;
+    }
+
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
+    
+    toast({
+      title: "Pricing Updated",
+      description: `Total amount updated to $${pricingResult.totalAmount.toFixed(2)}`,
+    });
+  }
+
+  // Function to handle property size change with option to recalculate pricing
+  const handlePropertySizeChange = (newSize: string) => {
+    const normalizedSize = normalizePropertySize(newSize);
+    handleChange("property_size", normalizedSize);
+    
+    // Ask user if they want to recalculate pricing
+    if (form.services && getServicesArray(form.services).length > 0) {
+      if (window.confirm("Property size changed. Would you like to recalculate pricing for all services?")) {
+        // Delay the recalculation to allow the state to update
+        setTimeout(() => {
+          const updatedForm = { ...form, property_size: normalizedSize };
+          const servicesArray = getServicesArray(updatedForm.services);
+          const pricingResult = calculateBookingPricing(servicesArray, normalizedSize);
+          
+          if (pricingResult.errors.length > 0) {
+            setError(`Pricing calculation errors: ${pricingResult.errors.join(', ')}`);
+            return;
+          }
+
+          handleChange("services", pricingResult.services);
+          handleChange("total_amount", pricingResult.totalAmount);
+          
+          toast({
+            title: "Pricing Recalculated",
+            description: `Pricing updated for new property size. Total: $${pricingResult.totalAmount.toFixed(2)}`,
+          });
+        }, 100);
+      }
+    }
+  }
+
   const handleSave = async () => {
     setSaving(true)
     setError(null)
     let updatedForm = { ...form }
+    
+    console.log('Starting save operation with form:', updatedForm)
     
     // Ensure all link fields are present in the update, even if empty
     const linkFields = [
@@ -314,8 +377,8 @@ export default function BookingDetailsPage() {
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to save changes')
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save changes')
       }
 
       const { data } = await response.json()
@@ -328,12 +391,24 @@ export default function BookingDetailsPage() {
         setEditing(false)
         setSaveSuccess(true)
         setTimeout(() => setSaveSuccess(false), 1200)
+        
+        toast({
+          title: "Booking Updated",
+          description: "All changes have been saved successfully.",
+        })
       } else {
         throw new Error('No data returned after update')
       }
     } catch (err) {
       console.error('Error in save operation:', err)
-      setError(err instanceof Error ? err.message : "Failed to save changes")
+      const errorMessage = err instanceof Error ? err.message : "Failed to save changes"
+      setError(errorMessage)
+      
+      toast({
+        title: "Save Failed",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setSaving(false)
     }
@@ -368,8 +443,11 @@ export default function BookingDetailsPage() {
     } else {
       updated = [{ ...service, count: 1 }, ...current]; // Add new service at the top
     }
-    handleChange("services", updated);
-    handleChange("total_amount", recalcTotal(updated));
+    
+    // Recalculate pricing properly
+    const pricingResult = calculateBookingPricing(updated, form.property_size);
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
   };
 
   // Handler to remove a service
@@ -383,8 +461,11 @@ export default function BookingDetailsPage() {
     } else {
       updated.splice(idx, 1);
     }
-    handleChange("services", updated);
-    handleChange("total_amount", recalcTotal(updated));
+    
+    // Recalculate pricing properly
+    const pricingResult = calculateBookingPricing(updated, form.property_size);
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
   };
 
   // Add increment and decrement handlers
@@ -394,8 +475,11 @@ export default function BookingDetailsPage() {
     if (idx === -1) return;
     const updated = [...current];
     updated[idx] = { ...updated[idx], count: (updated[idx].count || 1) + 1 };
-    handleChange("services", updated);
-    handleChange("total_amount", recalcTotal(updated));
+    
+    // Recalculate pricing properly
+    const pricingResult = calculateBookingPricing(updated, form.property_size);
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
   };
 
   const handleDecrementService = (serviceName: string) => {
@@ -408,8 +492,11 @@ export default function BookingDetailsPage() {
     } else {
       updated.splice(idx, 1);
     }
-    handleChange("services", updated);
-    handleChange("total_amount", recalcTotal(updated));
+    
+    // Recalculate pricing properly
+    const pricingResult = calculateBookingPricing(updated, form.property_size);
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
   };
 
   // Helper to get available services based on property_size
@@ -433,8 +520,12 @@ export default function BookingDetailsPage() {
     };
     const current = getServicesArray(form.services);
     const updated = [newService, ...current];
-    handleChange("services", updated);
-    handleChange("total_amount", recalcTotal(updated));
+    
+    // Recalculate pricing properly
+    const pricingResult = calculateBookingPricing(updated, form.property_size);
+    handleChange("services", pricingResult.services);
+    handleChange("total_amount", pricingResult.totalAmount);
+    
     setCustomServiceName("");
     setCustomServicePrice("");
     setShowCustomService(false);
@@ -447,6 +538,7 @@ export default function BookingDetailsPage() {
     const updated = [...current];
     [updated[index - 1], updated[index]] = [updated[index], updated[index - 1]];
     handleChange("services", updated);
+    // Don't recalculate pricing for moves, just keep the existing total
     handleChange("total_amount", recalcTotal(updated));
   };
 
@@ -456,6 +548,7 @@ export default function BookingDetailsPage() {
     const updated = [...current];
     [updated[index], updated[index + 1]] = [updated[index + 1], updated[index]];
     handleChange("services", updated);
+    // Don't recalculate pricing for moves, just keep the existing total
     handleChange("total_amount", recalcTotal(updated));
   };
 
@@ -729,7 +822,7 @@ export default function BookingDetailsPage() {
   }
 
   const copyReferenceUrl = async () => {
-    const url = `rephotosteam.com/book-now/confirmation/${booking.reference_number}`
+    const url = `rephotos.ca/book-now/confirmation/${booking.reference_number}`
     try {
       await navigator.clipboard.writeText(url)
       setCopiedRef(true)
@@ -1022,8 +1115,8 @@ export default function BookingDetailsPage() {
               {editing ? (
                 <select
                   className="border rounded px-2 py-1 text-sm w-full"
-                  value={getPropertySizeRange(form.property_size || '')}
-                  onChange={e => handleChange('property_size', e.target.value)}
+                  value={form.property_size || ''}
+                  onChange={e => handlePropertySizeChange(e.target.value)}
                 >
                   <option value="">Select property size...</option>
                   {PROPERTY_SIZE_OPTIONS.map(size => (
@@ -1126,7 +1219,7 @@ export default function BookingDetailsPage() {
               <span className="text-xs text-gray-500 block">Reference Number</span>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono bg-blue-50 p-2 rounded border flex-1">
-                  rephotosteam.com/book-now/confirmation/{booking.reference_number}
+                  rephotos.ca/book-now/confirmation/{booking.reference_number}
                 </span>
                 <Button
                   variant="outline"
@@ -1172,16 +1265,9 @@ export default function BookingDetailsPage() {
                   }}
                 />
               ) : (
-                (() => {
-                  if (!booking.time || typeof booking.time !== "string" || !/^\d{2}:\d{2}(:\d{2})?$/.test(booking.time)) {
-                    return "N/A";
-                  }
-                  try {
-                    return format(parse(booking.time, "HH:mm:ss", new Date()), "h:mm a");
-                  } catch {
-                    return "N/A";
-                  }
-                })()
+                <span className="text-sm">
+                  {booking.time ? format(new Date(`2000-01-01T${booking.time}`), "h:mm a") : "N/A"}
+                </span>
               )}
             </div>
             <div className="mb-2"><span className="text-xs text-gray-500 block">Created</span>{booking.created_at}</div>
@@ -1284,7 +1370,19 @@ export default function BookingDetailsPage() {
           </div>
           {/* Services Booked */}
           <div className="bg-white rounded-lg p-6 border">
-            <h2 className="text-lg font-semibold mb-4">Services Booked</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-semibold">Services Booked</h2>
+              {editing && (
+                <Button
+                  onClick={handleRecalculatePricing}
+                  variant="outline"
+                  size="sm"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                >
+                  Recalculate Pricing
+                </Button>
+              )}
+            </div>
             <div className="mb-2">
               <span className="text-xs text-gray-500 block">Selected Package</span>
               <span className="text-sm bg-blue-50 p-2 rounded block">{booking.selected_package_name || "No package selected"}</span>
@@ -1352,7 +1450,7 @@ export default function BookingDetailsPage() {
                     </div>
                   )}
                   <div className="mt-4 font-bold">
-                    Total: ${total.toFixed(2)}
+                    Total: ${(booking.total_amount || 0).toFixed(2)}
                   </div>
                   {booking.additional_instructions && (
                     <div className="mt-4">

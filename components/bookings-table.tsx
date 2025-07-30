@@ -23,9 +23,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { 
   PACKAGES, 
   getPropertySizeRange, 
-  formatPropertySizeDisplay,
-  getDiscountInfo,
-  applyDiscount
+  formatPropertySizeDisplay
 } from "@/lib/constants"
 
 // Define types based on the provided schema
@@ -53,6 +51,7 @@ type Booking = {
   address: string | Address // Can be JSON string or object
   notes: string
   preferred_date: string
+  time: string | null
   property_status: string
   status: string
   payment_status: string
@@ -109,9 +108,18 @@ const EDITING_STATUS_OPTIONS = [
   { value: "done_editing", label: "Done Editing", color: "bg-green-100 text-green-800", hoverColor: "hover:bg-green-200" },
 ]
 
-// Create Supabase client with explicit configuration
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ""
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+// Create Supabase client with explicit configuration and error handling
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase configuration:', {
+    url: supabaseUrl ? 'SET' : 'MISSING',
+    key: supabaseAnonKey ? 'SET' : 'MISSING'
+  })
+  throw new Error('Supabase configuration is missing. Please check your environment variables.')
+}
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
@@ -457,7 +465,7 @@ export function BookingsTable({
                       {formatDate(booking.preferred_date)}
                     </Link>
                   </div>
-                  <div className="text-sm font-medium">{formatCurrency(applyDiscount(booking.total_amount))}</div>
+                  <div className="text-sm font-medium">{formatCurrency(booking.total_amount)}</div>
                 </div>
               </div>
 

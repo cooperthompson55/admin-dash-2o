@@ -16,21 +16,6 @@ interface CreateEmailModalProps {
   onEmailSent: () => void
 }
 
-// Discount helpers copied from booking page
-const getDiscountInfo = (total: number) => {
-  if (total >= 1100) return { percent: 17, min: 1100, max: Infinity };
-  if (total >= 900) return { percent: 15, min: 900, max: 1099.99 };
-  if (total >= 700) return { percent: 12, min: 700, max: 899.99 };
-  if (total >= 500) return { percent: 10, min: 500, max: 699.99 };
-  if (total >= 350) return { percent: 5, min: 350, max: 499.99 };
-  if (total >= 199.99) return { percent: 3, min: 199.99, max: 349.99 };
-  return { percent: 0, min: 0, max: 199.98 };
-};
-const applyDiscount = (total: number) => {
-  const { percent } = getDiscountInfo(total);
-  return total * (1 - percent / 100);
-};
-
 const EMAIL_TEMPLATES = {
   'final-delivery': {
     name: 'Final Delivery',
@@ -46,11 +31,8 @@ const EMAIL_TEMPLATES = {
       const address = streetOnly;
       const downloadLink = booking.final_edits_link || '';
       const virtualTourLink = booking.tour_360_link || '';
-      // Calculate price after volume discount
-      let price = booking.total_amount;
-      if (typeof price === 'number') {
-        price = applyDiscount(price);
-      }
+      // Use the actual booking total without any discounts
+      const price = booking.total_amount;
       const priceDisplay = typeof price === 'number' ? `$${price.toFixed(2)}` : '';
       return {
         subject: `${streetOnly} - Final Media Ready`,

@@ -13,8 +13,6 @@ import { MetricsPanel } from "@/components/dashboard/MetricsPanel"
 
 // Import shared constants
 import { 
-  getDiscountInfo,
-  applyDiscount,
   formatPropertySizeDisplay
 } from "@/lib/constants"
 
@@ -28,6 +26,7 @@ type Booking = {
   address: any
   notes: string
   preferred_date: string
+  time: string | null
   property_status: string
   status: string
   payment_status: string
@@ -120,16 +119,12 @@ export default function AdminDashboard() {
 
         console.log("Fetching bookings...", new Date().toISOString())
 
-        // Only fetch the last 30 days of bookings by default
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
+        // Fetch all bookings without date filtering to show older bookings
         const { data, error: supabaseError } = await supabase
           .from("bookings")
-          .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
-          .gte('created_at', thirtyDaysAgo.toISOString())
+          .select("id, created_at, property_size, services, total_amount, address, notes, preferred_date, time, property_status, status, payment_status, editing_status, user_id, agent_name, agent_email, agent_phone, agent_company, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code")
           .order("created_at", { ascending: false })
-          .limit(100) // Limit to 100 bookings at a time
+          .limit(500) // Increased limit to show more bookings
 
         if (supabaseError) {
           console.error("Error fetching bookings:", {
@@ -146,7 +141,7 @@ export default function AdminDashboard() {
         console.log("Supabase query successful:", {
           dataLength: data?.length,
           firstBooking: data?.[0],
-          queryDate: thirtyDaysAgo.toISOString()
+          oldestBooking: data?.[data?.length - 1]
         })
 
         // Check if we have new bookings

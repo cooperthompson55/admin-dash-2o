@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { validateBookingData } from '@/lib/constants'
 
 // Create Supabase client for this API route
 const supabase = createClient(
@@ -26,18 +27,30 @@ export async function POST(request: Request) {
       )
     }
 
-    // Process each update individually to ensure proper handling of empty strings
+    // Process each update individually with validation and pricing recalculation
     const results = await Promise.all(updates.map(async (update) => {
       const { id, ...updateData } = update
       
-      // Log the update data for debugging
-      console.log('Updating booking:', id, 'with data:', updateData)
+      // Log the original update data
+      console.log('Updating booking:', id, 'with original data:', updateData)
+      
+      // Validate and normalize the data
+      const validation = validateBookingData(updateData)
+      
+      if (!validation.isValid) {
+        console.error('Validation errors for booking', id, ':', validation.errors)
+        throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
+      }
+      
+      // Use the normalized data for the update
+      const normalizedData = validation.normalizedData
+      console.log('Updating booking:', id, 'with normalized data:', normalizedData)
       
       const { data, error } = await supabase
         .from('bookings')
-        .update(updateData)
+        .update(normalizedData)
         .eq('id', id)
-        .select('id, status, payment_status, editing_status, raw_photos_link, final_edits_link, tour_360_link, editor_link, delivery_page_link, invoice_link, reference_number, selected_package_name, additional_instructions, property_type, bedrooms, bathrooms, parking_spaces, suite_unit, access_instructions, agent_designation, agent_brokerage, feature_sheet_content, promotion_code')
+        .select('*')
         .single()
 
       if (error) {

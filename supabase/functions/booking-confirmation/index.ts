@@ -19,7 +19,7 @@ const EMAIL_CONFIG = {
 };
 
 // Add version logging
-console.log("Booking Confirmation Function version: 1.4.0");
+console.log("Booking Confirmation Function version: 2.0.0");
 console.log("Function started at:", new Date().toISOString());
 
 // Check if API key exists and log its presence (but not the actual key)
@@ -50,69 +50,244 @@ try {
   throw error;
 }
 
-// Package definitions - centralized source of truth
+// Updated package definitions based on new CSV pricing
 const PACKAGES: Record<string, Record<string, { price: number; includes: string[] }>> = {
-  'Essentials Package': {
-    'Under 1500 sq.ft.': { price: 229.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '1500-2499 sq.ft.': { price: 289.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '2500-3499 sq.ft.': { price: 349.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '3500-4499 sq.ft.': { price: 389.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
-    '4500-5499 sq.ft.': { price: 449.99, includes: ['HDR Photography', '1–2 Drone Shots', 'Slideshow Video Tour', 'Property Website'] },
+  'Essentials': {
+    'Under 1500 sq.ft.': { 
+      price: 279, 
+      includes: ['Professional Photography', '1-2 Drone Photos', 'Listing Website', 'Slideshow Video', 'Feature Sheet (PDF)', 'Social Media Post (Square)', 'Social Media Story (Vertical)', 'Blue Sky Replacement'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 329, 
+      includes: ['Professional Photography', '1-2 Drone Photos', 'Listing Website', 'Slideshow Video', 'Feature Sheet (PDF)', 'Social Media Post (Square)', 'Social Media Story (Vertical)', 'Blue Sky Replacement'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 379, 
+      includes: ['Professional Photography', '1-2 Drone Photos', 'Listing Website', 'Slideshow Video', 'Feature Sheet (PDF)', 'Social Media Post (Square)', 'Social Media Story (Vertical)', 'Blue Sky Replacement'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 429, 
+      includes: ['Professional Photography', '1-2 Drone Photos', 'Listing Website', 'Slideshow Video', 'Feature Sheet (PDF)', 'Social Media Post (Square)', 'Social Media Story (Vertical)', 'Blue Sky Replacement'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 479, 
+      includes: ['Professional Photography', '1-2 Drone Photos', 'Listing Website', 'Slideshow Video', 'Feature Sheet (PDF)', 'Social Media Post (Square)', 'Social Media Story (Vertical)', 'Blue Sky Replacement'] 
+    },
   },
-  'Deluxe Tour Package': {
-    'Under 1500 sq.ft.': { price: 489.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '1500-2499 sq.ft.': { price: 579.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '2500-3499 sq.ft.': { price: 649.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '3500-4499 sq.ft.': { price: 719.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
-    '4500-5499 sq.ft.': { price: 799.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Slideshow Video Tour', 'Property Website', 'Custom Domain Name'] },
+  'Essentials + 2D Floor Plans': {
+    'Under 1500 sq.ft.': { 
+      price: 349, 
+      includes: ['Everything in Essentials + 2D Floor Plan (Color-coded + Black and white)'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 399, 
+      includes: ['Everything in Essentials + 2D Floor Plan (Color-coded + Black and white)'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 449, 
+      includes: ['Everything in Essentials + 2D Floor Plan (Color-coded + Black and white)'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 499, 
+      includes: ['Everything in Essentials + 2D Floor Plan (Color-coded + Black and white)'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 549, 
+      includes: ['Everything in Essentials + 2D Floor Plan (Color-coded + Black and white)'] 
+    },
   },
-  'Marketing Pro Package': {
-    'Under 1500 sq.ft.': { price: 829.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '1500-2499 sq.ft.': { price: 959.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '2500-3499 sq.ft.': { price: 1079.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '3500-4499 sq.ft.': { price: 1179.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
-    '4500-5499 sq.ft.': { price: 1299.99, includes: ['HDR Photography', '2–3 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', 'Slideshow Video Tour'] },
+  'Essentials + Matterport Tour': {
+    'Under 1500 sq.ft.': { 
+      price: 399, 
+      includes: ['Everything in Essentials + 360 Virtual Tour'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 449, 
+      includes: ['Everything in Essentials + 360 Virtual Tour'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 499, 
+      includes: ['Everything in Essentials + 360 Virtual Tour'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 549, 
+      includes: ['Everything in Essentials + 360 Virtual Tour'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 599, 
+      includes: ['Everything in Essentials + 360 Virtual Tour'] 
+    },
   },
-  'Premium Seller Experience': {
-    'Under 1500 sq.ft.': { price: 1069.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '1500-2499 sq.ft.': { price: 1199.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '2500-3499 sq.ft.': { price: 1319.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '3500-4499 sq.ft.': { price: 1419.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
-    '4500-5499 sq.ft.': { price: 1539.99, includes: ['HDR Photography', '3–5 Drone Shots', '360° Virtual Tour', '2D Floor Plan', 'Custom Video', 'Property Website', 'Custom Domain Name', '3D House Model', 'Virtual Twilight', 'Slideshow Video Tour'] },
+  'Essentials + Property Tour Video': {
+    'Under 1500 sq.ft.': { 
+      price: 479, 
+      includes: ['Everything in Essentials + Property Tour Video (Drone Footage)'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 529, 
+      includes: ['Everything in Essentials + Property Tour Video (Drone Footage)'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 579, 
+      includes: ['Everything in Essentials + Property Tour Video (Drone Footage)'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 629, 
+      includes: ['Everything in Essentials + Property Tour Video (Drone Footage)'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 679, 
+      includes: ['Everything in Essentials + Property Tour Video (Drone Footage)'] 
+    },
+  },
+  'Marketing Pro': {
+    'Under 1500 sq.ft.': { 
+      price: 679, 
+      includes: ['Everything in Essentials + Enhanced Twilight Listing Image + 360 Virtual Tour', 'Property Highlights Video', '2D Floor Plan (Color-coded + Blk and white)', 'Full Aerial Coverage (Additional Drone Images + Footage) + Custom Domain Name'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 729, 
+      includes: ['Everything in Essentials + Enhanced Twilight Listing Image + 360 Virtual Tour', 'Property Highlights Video', '2D Floor Plan (Color-coded + Blk and white)', 'Full Aerial Coverage (Additional Drone Images + Footage) + Custom Domain Name'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 779, 
+      includes: ['Everything in Essentials + Enhanced Twilight Listing Image + 360 Virtual Tour', 'Property Highlights Video', '2D Floor Plan (Color-coded + Blk and white)', 'Full Aerial Coverage (Additional Drone Images + Footage) + Custom Domain Name'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 829, 
+      includes: ['Everything in Essentials + Enhanced Twilight Listing Image + 360 Virtual Tour', 'Property Highlights Video', '2D Floor Plan (Color-coded + Blk and white)', 'Full Aerial Coverage (Additional Drone Images + Footage) + Custom Domain Name'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 879, 
+      includes: ['Everything in Essentials + Enhanced Twilight Listing Image + 360 Virtual Tour', 'Property Highlights Video', '2D Floor Plan (Color-coded + Blk and white)', 'Full Aerial Coverage (Additional Drone Images + Footage) + Custom Domain Name'] 
+    },
+  },
+  'Top Agent': {
+    'Under 1500 sq.ft.': { 
+      price: 799, 
+      includes: ['Everything in Marketing Pro + Agent on video', '2 Additional Twilight Images', 'Social Media Reel Video', 'Extra social media content', '2D + 3D Floor Plan'] 
+    },
+    '1500-2500 sq.ft.': { 
+      price: 849, 
+      includes: ['Everything in Marketing Pro + Agent on video', '2 Additional Twilight Images', 'Social Media Reel Video', 'Extra social media content', '2D + 3D Floor Plan'] 
+    },
+    '2500-3500 sq.ft.': { 
+      price: 899, 
+      includes: ['Everything in Marketing Pro + Agent on video', '2 Additional Twilight Images', 'Social Media Reel Video', 'Extra social media content', '2D + 3D Floor Plan'] 
+    },
+    '3500-4500 sq.ft.': { 
+      price: 949, 
+      includes: ['Everything in Marketing Pro + Agent on video', '2 Additional Twilight Images', 'Social Media Reel Video', 'Extra social media content', '2D + 3D Floor Plan'] 
+    },
+    '4500-5500 sq.ft.': { 
+      price: 999, 
+      includes: ['Everything in Marketing Pro + Agent on video', '2 Additional Twilight Images', 'Social Media Reel Video', 'Extra social media content', '2D + 3D Floor Plan'] 
+    },
   },
 };
 
-// --- VOLUME DISCOUNT HELPERS ---
-function getDiscountPercent(amount: number): number {
-  if (amount >= 1100) return 17;
-  if (amount >= 900) return 15;
-  if (amount >= 700) return 12;
-  if (amount >= 500) return 10;
-  if (amount >= 350) return 5;
-  if (amount >= 199.99) return 3;
-  return 0;
-}
+// Individual service pricing
+const INDIVIDUAL_SERVICES: Record<string, Record<string, number>> = {
+  'HDR Photography': {
+    'Under 1500 sq.ft.': 169,
+    '1500-2500 sq.ft.': 229,
+    '2500-3500 sq.ft.': 289,
+    '3500-4500 sq.ft.': 349,
+    '4500-5500 sq.ft.': 409,
+  },
+  'Matterport 3D Tour': {
+    'Under 1500 sq.ft.': 199,
+    '1500-2500 sq.ft.': 239,
+    '2500-3500 sq.ft.': 279,
+    '3500-4500 sq.ft.': 319,
+    '4500-5500 sq.ft.': 359,
+  },
+  'Property Highlights Video': {
+    'Under 1500 sq.ft.': 289,
+    '1500-2500 sq.ft.': 309,
+    '2500-3500 sq.ft.': 329,
+    '3500-4500 sq.ft.': 349,
+    '4500-5500 sq.ft.': 369,
+  },
+  'Slideshow Video Tour': {
+    'Under 1500 sq.ft.': 99,
+    '1500-2500 sq.ft.': 99,
+    '2500-3500 sq.ft.': 99,
+    '3500-4500 sq.ft.': 99,
+    '4500-5500 sq.ft.': 99,
+  },
+  'Social Media Reel': {
+    'Under 1500 sq.ft.': 229,
+    '1500-2500 sq.ft.': 249,
+    '2500-3500 sq.ft.': 269,
+    '3500-4500 sq.ft.': 289,
+    '4500-5500 sq.ft.': 309,
+  },
+  'Drone Aerial Photos': {
+    'Under 1500 sq.ft.': 159,
+    '1500-2500 sq.ft.': 159,
+    '2500-3500 sq.ft.': 159,
+    '3500-4500 sq.ft.': 159,
+    '4500-5500 sq.ft.': 159,
+  },
+  'Drone Aerial Video': {
+    'Under 1500 sq.ft.': 159,
+    '1500-2500 sq.ft.': 159,
+    '2500-3500 sq.ft.': 159,
+    '3500-4500 sq.ft.': 159,
+    '4500-5500 sq.ft.': 159,
+  },
+  'Drone Photos + Video': {
+    'Under 1500 sq.ft.': 199,
+    '1500-2500 sq.ft.': 199,
+    '2500-3500 sq.ft.': 199,
+    '3500-4500 sq.ft.': 199,
+    '4500-5500 sq.ft.': 199,
+  },
+  '2D Floor Plans': {
+    'Under 1500 sq.ft.': 119,
+    '1500-2500 sq.ft.': 149,
+    '2500-3500 sq.ft.': 179,
+    '3500-4500 sq.ft.': 209,
+    '4500-5500 sq.ft.': 239,
+  },
+  '3D House Model': {
+    'Under 1500 sq.ft.': 159,
+    '1500-2500 sq.ft.': 199,
+    '2500-3500 sq.ft.': 239,
+    '3500-4500 sq.ft.': 279,
+    '4500-5500 sq.ft.': 319,
+  },
+  'Property Website': {
+    'Under 1500 sq.ft.': 129,
+    '1500-2500 sq.ft.': 129,
+    '2500-3500 sq.ft.': 129,
+    '3500-4500 sq.ft.': 129,
+    '4500-5500 sq.ft.': 129,
+  },
+  'Custom Domain Name': {
+    'Under 1500 sq.ft.': 39,
+    '1500-2500 sq.ft.': 39,
+    '2500-3500 sq.ft.': 39,
+    '3500-4500 sq.ft.': 39,
+    '4500-5500 sq.ft.': 39,
+  },
+};
 
-function calculateDiscountedTotal(amount: number) {
-  const percent = getDiscountPercent(amount);
-  const discount = +(amount * (percent / 100)).toFixed(2);
-  return {
-    percent,
-    discount,
-    final: +(amount - discount).toFixed(2)
-  };
-}
+// Per-image services (fixed pricing)
+const PER_IMAGE_SERVICES: Record<string, number> = {
+  'Virtual Declutter': 29,
+  'Virtual Staging': 39,
+  'Virtual Twilight': 49,
+};
 
 // Helper function to convert specific property size to range for pricing
 function getPropertySizeRange(size: string | number): string {
   let sizeNum: number;
   
   // If it's already a range format, return it if it matches our new format
-  if (typeof size === 'string' && (size.includes('sq.ft.') || size.includes('sq ft'))) {
-    // Convert old format to new format if needed
-    if (size.includes('–') || size.includes('-')) {
-      return size; // Assume it's already in correct format
-    }
+  if (typeof size === 'string' && size.includes('sq.ft.')) {
+    return size;
   }
   
   // Convert to number
@@ -122,118 +297,23 @@ function getPropertySizeRange(size: string | number): string {
     sizeNum = size;
   }
   
-  // Convert number to appropriate range using new ranges
+  // Convert number to appropriate range using updated ranges
   if (sizeNum < 1500) return 'Under 1500 sq.ft.';
-  if (sizeNum < 2500) return '1500-2499 sq.ft.';
-  if (sizeNum < 3500) return '2500-3499 sq.ft.';
-  if (sizeNum < 4500) return '3500-4499 sq.ft.';
-  return '4500-5499 sq.ft.';
+  if (sizeNum < 2500) return '1500-2500 sq.ft.';
+  if (sizeNum < 3500) return '2500-3500 sq.ft.';
+  if (sizeNum < 4500) return '3500-4500 sq.ft.';
+  return '4500-5500 sq.ft.';
 }
 
 // Helper function to format property size for display
 function formatPropertySizeDisplay(size: string | number): string {
   if (!size) return 'Not specified';
   
-  // If it's already a range format with sq.ft., return it
-  if (typeof size === 'string' && size.includes('sq.ft.')) {
+  if (typeof size === 'string') {
     return size;
   }
   
-  // If it's an old range format, convert it
-  if (typeof size === 'string' && (size.includes('–') || size.includes('-'))) {
-    // Try to extract numbers and convert to new format
-    const match = size.match(/(\d+)[–-](\d+)/);
-    if (match) {
-      const [, start, end] = match;
-      const startNum = parseInt(start);
-      const endNum = parseInt(end);
-      const avgSize = (startNum + endNum) / 2;
-      return getPropertySizeRange(avgSize);
-    }
-    return size; // Fallback to original if can't parse
-  }
-  
-  // If it's a number or numeric string, format it as a specific size
-  let sizeNum: number;
-  if (typeof size === 'string') {
-    sizeNum = parseInt(size.replace(/[^0-9]/g, ''));
-  } else {
-    sizeNum = size;
-  }
-  
-  if (isNaN(sizeNum)) return 'Not specified';
-  
-  return `${sizeNum.toLocaleString()} sq ft (${getPropertySizeRange(sizeNum)})`;
-}
-
-// Helper function to calculate correct pricing and format services for email
-function calculateAndFormatServices(services: any[], propertySize: string | number) {
-  const packageNames = Object.keys(PACKAGES);
-  const propertySizeRange = getPropertySizeRange(propertySize);
-  
-  let totalCalculatedPrice = 0;
-  let packageServices: any[] = [];
-  let individualServices: any[] = [];
-  let allPackageIncludes: string[] = [];
-  
-  // Separate packages from individual services
-  services.forEach((service: any) => {
-    if (packageNames.includes(service.name)) {
-      packageServices.push(service);
-      const pkgInfo = PACKAGES[service.name]?.[propertySizeRange];
-      if (pkgInfo) {
-        totalCalculatedPrice += pkgInfo.price * (service.count || 1);
-        allPackageIncludes = allPackageIncludes.concat(pkgInfo.includes);
-      }
-    } else {
-      individualServices.push(service);
-    }
-  });
-  
-  // Filter individual services to only show those not included in packages
-  const additionalServices = individualServices.filter((service: any) => 
-    !allPackageIncludes.includes(service.name)
-  );
-  
-  // Calculate pricing for additional individual services
-  additionalServices.forEach((service: any) => {
-    totalCalculatedPrice += (service.total || service.price || 0) * (service.count || 1);
-  });
-  
-  let servicesSections: string[] = [];
-  
-  // Format packages
-  if (packageServices.length > 0) {
-    packageServices.forEach((pkg: any) => {
-      const pkgInfo = PACKAGES[pkg.name]?.[propertySizeRange];
-      if (pkgInfo) {
-        const count = pkg.count || 1;
-        const packagePrice = pkgInfo.price * count;
-        let packageSection = `📦 ${pkg.name} (${formatPropertySizeDisplay(propertySize)})${count > 1 ? ` x${count}` : ''} - $${packagePrice.toFixed(2)}\n`;
-        packageSection += `   Includes:\n`;
-        pkgInfo.includes.forEach((include) => {
-          packageSection += `   • ${include}\n`;
-        });
-        servicesSections.push(packageSection.trim());
-      }
-    });
-  }
-  
-  // Format additional individual services
-  if (additionalServices.length > 0) {
-    let individualSection = "🔧 Additional Services:\n";
-    additionalServices.forEach((service: any) => {
-      const count = service.count || 1;
-      const total = service.total || (service.price * count);
-      individualSection += `   • ${service.name}${count > 1 ? ` (x${count})` : ''} - $${total.toFixed(2)}\n`;
-    });
-    servicesSections.push(individualSection.trim());
-  }
-  
-  return {
-    formattedServices: servicesSections.join('\n\n'),
-    calculatedTotal: totalCalculatedPrice
-  };
+  return `${size.toLocaleString()} sq ft`;
 }
 
 // Helper function to validate booking record
@@ -457,20 +537,6 @@ serve(async (req: Request) => {
       reference_number
     } = record;
 
-    // Calculate and format services with correct pricing
-    const { formattedServices, calculatedTotal } = calculateAndFormatServices(services, property_size);
-
-    // Use the stored total_amount from the booking, but log if there's a discrepancy
-    const storedTotal = typeof total_amount === 'number' ? total_amount : parseFloat(total_amount);
-    
-    if (Math.abs(calculatedTotal - storedTotal) > 0.01) {
-      console.warn(`[${requestId}] Price discrepancy detected:`, {
-        calculatedTotal,
-        storedTotal,
-        difference: Math.abs(calculatedTotal - storedTotal)
-      });
-    }
-
     // Format address
     const addressStr = typeof address === 'string'
       ? address
@@ -485,19 +551,10 @@ serve(async (req: Request) => {
       return `${hour12}:${minutes} ${ampm}`;
     };
 
-    // --- DISCOUNT CALC ---
-    const discountInfo = calculateDiscountedTotal(storedTotal);
-
-    let priceSection = '';
-    if (discountInfo.percent > 0) {
-      priceSection = `PRICING BREAKDOWN
-Subtotal: $${storedTotal.toFixed(2)}
-Volume Discount (${discountInfo.percent}%): -$${discountInfo.discount.toFixed(2)}
-Total After Discount: $${discountInfo.final.toFixed(2)}`;
-    } else {
-      priceSection = `TOTAL PRICE
-$${storedTotal.toFixed(2)}`;
-    }
+    // Format services list
+    const serviceList = services.map((service: any) => 
+      `• ${service.name}${service.count > 1 ? ` (x${service.count})` : ''} - $${service.total.toFixed(2)}`
+    ).join('\n');
 
     const emailBody = `Dear ${agent_name},
 
@@ -523,11 +580,12 @@ https://rephotos.ca/book-now/confirmation/${reference_number}
 • Address: ${addressStr}
 
 SERVICES BOOKED
-${formattedServices}
+${serviceList}
 
-${priceSection}
+TOTAL PRICE
+$${total_amount.toFixed(2)}
 
-${notes ? `ADDITIONAL NOTES\n${notes}\n` : ''}AGENT INFORMATION
+${notes ? `ADDITIONAL NOTES\n${notes}\n\n` : ''}AGENT INFORMATION
 • Name: ${agent_name}
 • Email: ${agent_email}
 ${agent_phone ? `• Phone: ${agent_phone}` : ''}
@@ -545,7 +603,7 @@ If you need to make any changes to your booking, simply reply to this email or c
 
 Best regards,
 Cooper Thompson
-${EMAIL_CONFIG.from}
+${EMAIL_CONFIG.companyName}
 ${EMAIL_CONFIG.phone}
 ${EMAIL_CONFIG.companyName.toLowerCase()}.ca`.trim();
 
